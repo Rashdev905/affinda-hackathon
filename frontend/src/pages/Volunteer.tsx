@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, errorMessage, usePolling } from '../api/client'
 import { ErrorNotice, Icon, StatusBadge, UrgencyBadge } from '../components/ui'
+import { IncidentLog } from '../components/IncidentLog'
 import type { Incident } from '../types'
 
 const examples = [
@@ -60,6 +61,7 @@ export default function Volunteer() {
       </section>}
       {!shown && !!reports.data?.filter(item => item.status !== 'resolved').length && <section className="panel previous-reports"><label htmlFor="existing-incident">Updating an existing incident?</label><select id="existing-incident" value="" onChange={event => { setIncident(reports.data?.find(item => item.id === event.target.value) ?? null); setSuccess(''); setError(''); setUpdate('') }}><option value="">Choose an active incident</option>{reports.data.filter(item => item.status !== 'resolved').map(item => <option key={item.id} value={item.id}>{item.id} · {item.summary}</option>)}</select></section>}
     </div><aside className="report-aside"><div className="green-panel"><span className="circle-icon"><Icon name="pulse" size={32} /></span><h2>A clear report.<br />A coordinated response.</h2><p>You don’t need the perfect words. Start with what you see.</p><div className="process-step"><span>1</span><div><strong>You share what’s happening</strong><p>A few words from the scene.</p></div></div><div className="process-step"><span>2</span><div><strong>Pulse brings it together</strong><p>A summary and a short follow-up.</p></div></div><div className="process-step"><span>3</span><div><strong>Your safety lead takes it from here</strong><p>A person reviews the response.</p></div></div></div><div className="quiet-note"><Icon name="spark" /><p><strong>Made for the first few moments.</strong><br />This demo uses a mock parser and simulated resources. No real teams are contacted.</p></div></aside></div>
+    {!!reports.data && <section className="my-reports"><div className="section-heading"><div><span className="eyebrow">VOL-014</span><h2>My reports</h2></div></div><IncidentLog incidents={reports.data.filter(item => item.reported_by === 'VOL-014')} compact /></section>}
   </div>
 }
 
