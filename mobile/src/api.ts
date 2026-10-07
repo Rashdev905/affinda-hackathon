@@ -1,6 +1,6 @@
 import { AppState } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Decision, Incident, Resource } from './types';
+import type { AlertDraft, Decision, Incident, Resource } from './types';
 
 export function validateServer(value: string, allowHttp = true): string {
   const url = new URL(value.trim());
@@ -11,10 +11,10 @@ export function validateServer(value: string, allowHttp = true): string {
   return url.toString().replace(/\/$/, '');
 }
 
-export async function request<T>(base: string, path: string, body?: unknown, options?: { method?: string; headers?: Record<string, string> }): Promise<T> {
+export async function request<T>(base: string, path: string, body?: unknown, options?: { method?: string; headers?: Record<string, string>; timeoutMs?: number }): Promise<T> {
   if (!base) throw new Error('Set your Python server address in Connection first.');
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const timeout = setTimeout(() => controller.abort(), options?.timeoutMs ?? 12000);
   try {
     const response = await fetch(base + path, {
       method: options?.method ?? (body === undefined ? 'GET' : 'POST'),
@@ -42,8 +42,11 @@ export function client(base: string) {
     report: (text: string, reportedBy = 'VOL-014') => request<Incident>(base, '/api/reports', { text, reported_by: reportedBy }),
     update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(base, `/api/incidents/${id}/updates`, { text, reported_by }),
     decide: (id: string, decision: Decision) => request<Incident>(base, `/api/incidents/${id}/decision`, decision),
+    modifySuggestion: (id: string, responder_ids: string[], actions: string[], note: string) =>
+      request<Incident>(base, `/api/incidents/${id}/suggestion`, { responder_ids, actions, note, modified_by: 'Manager' }),
     resolve: (id: string, note: string) => request<Incident>(base, `/api/incidents/${id}/resolve`, { note }),
-    alert: (id: string, message: string) => request<Incident>(base, `/api/incidents/${id}/alerts`, { message, alerted_by: 'Manager' }),
+      alertDrafts: (id: string) => request<{ mode: 'openai' | 'mock' | 'ollama'; drafts: AlertDraft[] }>(base, `/api/incidents/${id}/alert-drafts`, {}, { timeoutMs: 100000 }),
+    alert: (id: string, messages: { volunteer_id: string; message: string }[]) => request<Incident>(base, `/api/incidents/${id}/alerts`, { messages, alerted_by: 'Manager' }),
     clearAllIncidents: () => request<{ deleted_count: number }>(base, '/api/incidents', undefined, { method: 'DELETE', headers: { 'X-Pulse-Mode': 'Manager' } }),
   };
 }

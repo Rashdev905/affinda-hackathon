@@ -16,13 +16,20 @@ def parse_report(text: str) -> ParsedReport:
     if zone and "toilet" in lower:
         location += " Toilets"
     type_ = "general"
-    if any(word in lower for word in ["collapsed", "dizzy", "unconscious", "fainted", "injured", "breathing", "heat", "medical"]):
+    fracture_signal = bool(re.search(r"\b(?:broken|fractured)\s+(?:(?:left|right)\s+)?(?:leg|arm|ankle|wrist|hip|rib|bone)\b|\bfracture\b", lower))
+    fracture_denied = bool(re.search(
+        r"\b(?:no|not|without|never)\s+(?:(?:evidence|signs|indication)\s+of\s+)?(?:a\s+|any\s+|the\s+)?(?:broken|fractured|fracture)\b"
+        r"|\b(?:does not|doesn't|did not|didn't)\s+(?:appear to have|have|sustain)\s+(?:a\s+)?(?:broken|fractured|fracture)\b"
+        r"|\bfracture\s+(?:was\s+)?(?:ruled out|not present)\b", lower,
+    ))
+    suspected_fracture = fracture_signal and not fracture_denied
+    if suspected_fracture or any(word in lower for word in ["collapsed", "dizzy", "unconscious", "fainted", "injured", "breathing", "heat", "medical"]):
         type_ = "medical"
     elif any(word in lower for word in ["lost child", "missing child", "lost person", "separated", "can't find", "cannot find"]):
         type_ = "lost_person"
     elif any(word in lower for word in ["fight", "aggressive", "security", "threat"]):
         type_ = "security"
-    elif any(word in lower for word in ["fire", "smoke", "cable", "hazard", "broken", "blocked"]):
+    elif any(word in lower for word in ["fire", "smoke", "cable", "hazard", "blocked"]):
         type_ = "hazard"
     critical = bool(re.search(r"\bunconscious\b|not breathing|stopped breathing", lower))
     if re.search(r"not unconscious|no longer unconscious", lower):

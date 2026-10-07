@@ -9,6 +9,7 @@ Write-Output 'Pulse must be logged in as a volunteer with background alerts enab
 if ($DelaySeconds) { Start-Sleep -Seconds $DelaySeconds }
 $body = @{ text = 'DEMO ALERT TEST: Someone needs medical assistance at Lawn Stage. This is a test; acknowledge the alert.'; reported_by = 'Demo alert test' } | ConvertTo-Json
 $incident = Invoke-RestMethod -Uri ($base + '/api/reports') -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 15
-Write-Output "Created $($incident.id). All 14 demo volunteer inboxes were alerted."
-Write-Output 'Expect a screen wake-up (if full-screen alerts are allowed) and continuous vibration without pauses. Open Pulse and tap Stop alert to stop it.'
+Write-Output "Created $($incident.id). No volunteer has been alerted yet."
+Write-Output 'In Manager > Operations, approve the response, review/edit each responder message, and select Send reviewed alerts.'
+Write-Output 'The assigned volunteer phones should then wake (if allowed) and vibrate continuously. Tap Stop alert to stop each phone alarm.'
 Write-Output "Resolve $($incident.id) in Manager > Operations after testing."

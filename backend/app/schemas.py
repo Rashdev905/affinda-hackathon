@@ -24,7 +24,7 @@ class UpdateInput(ReportInput):
 
 
 class DecisionInput(InputModel):
-    decision: Literal["approve", "modify", "reject"]
+    decision: Literal["approve", "reject"]
     responder_ids: list[str] | None = Field(default=None, max_length=20)
     actions: list[str] | None = Field(default=None, max_length=10)
     note: str = Field(default="", max_length=2000)
@@ -40,14 +40,54 @@ class DecisionInput(InputModel):
         return [action.strip() for action in actions]
 
 
+class ResponseModificationInput(InputModel):
+    responder_ids: list[str] = Field(min_length=1, max_length=20)
+    actions: list[str] = Field(min_length=1, max_length=10)
+    note: str = Field(default="", max_length=2000)
+    modified_by: str = Field(default="Safety lead", min_length=1, max_length=80)
+
+    @field_validator("actions")
+    @classmethod
+    def validate_modified_actions(cls, actions: list[str]) -> list[str]:
+        if any(not action.strip() or len(action) > 500 for action in actions):
+            raise ValueError("Provide between 1 and 10 non-empty actions, each under 500 characters.")
+        return [action.strip() for action in actions]
+
+
 class ResolveInput(InputModel):
     note: str = Field(default="", max_length=2000)
     resolved_by: str = Field(default="Safety lead", min_length=1, max_length=80)
 
 
-class AlertInput(InputModel):
+class ResponderAlertInput(InputModel):
+    volunteer_id: str = Field(min_length=1, max_length=80)
     message: str = Field(min_length=3, max_length=500)
+
+
+class AlertInput(InputModel):
+    message: str | None = Field(default=None, min_length=3, max_length=500)
+    messages: list[ResponderAlertInput] | None = Field(default=None, max_length=20)
     alerted_by: str = Field(default="Safety lead", min_length=1, max_length=80)
+
+    @field_validator("messages")
+    @classmethod
+    def require_alert_messages(cls, messages: list[ResponderAlertInput] | None, info):
+        if not messages and not info.data.get("message"):
+            raise ValueError("Provide a message for each responder.")
+        return messages
+
+
+class AlertDraft(BaseModel):
+    volunteer_id: str
+    volunteer_name: str
+    role: str
+    task: str
+    message: str
+
+
+class AlertDrafts(BaseModel):
+    mode: Literal["openai", "mock", "ollama"]
+    drafts: list[AlertDraft]
 
 
 class VolunteerAlert(BaseModel):
@@ -162,6 +202,7 @@ class Recommendation(BaseModel):
     actions: list[str]
     reasoning: list[str]
     conflicts: list[str]
+    manager_edited: bool = False
     requires_human_approval: Literal[True] = True
 
 
@@ -181,6 +222,7 @@ class Incident(ParsedReport):
     updated_at: str
     recommendation: Recommendation
     timeline: list[TimelineEvent]
+    # Retain "modify" to read incidents saved by older app versions.
     last_decision: Literal["approve", "modify", "reject"] | None = None
     assigned_responders: list[str] = Field(default_factory=list)
     resolution_note: str | None = None

@@ -2,9 +2,9 @@ from fastapi import APIRouter, Header, HTTPException
 
 from .. import database
 from ..models import REQUIRED_SKILLS
-from ..schemas import AlertInput, DecisionInput, Incident, ResponderAssignment, ResponderNeed, ResponsePlan, ResolveInput, UpdateInput
-from ..services.ai_analysis import AnalysisServiceError, analyze_report
-from ..services.alerts import queue_alerts, queue_emergency
+from ..schemas import AlertDraft, AlertDrafts, AlertInput, DecisionInput, Incident, ResponderAssignment, ResponderNeed, ResponseModificationInput, ResponsePlan, ResolveInput, UpdateInput
+from ..services.ai_analysis import AnalysisServiceError, analyze_report, generate_alert_messages
+from ..services.alerts import queue_alerts
 from ..services.coordinator import coverage_conflicts, recommend
 from ..services.incidents import event, refresh, require_incident, require_open
 
@@ -117,8 +117,6 @@ def decide(incident_id: str, body: DecisionInput) -> Incident:
                     raise HTTPException(status_code=422, detail="The response must include a first-aid responder or paramedic.")
             elif not any(REQUIRED_SKILLS[incident.type] in resource.skills for resource in chosen):
                 raise HTTPException(status_code=422, detail="The response must include a responder with the required incident skill.")
-            if body.decision == "modify" and not body.note:
-                raise HTTPException(status_code=422, detail="Add a short reason for the modified response.")
             for resource in resources:
                 if resource.current_assignment == incident.id and resource.id not in ids:
                     resource.current_assignment, resource.available, resource.status = None, True, "available"
@@ -160,11 +158,10 @@ def decide(incident_id: str, body: DecisionInput) -> Incident:
             incident.recommendation.reasoning = [f"{resource.name} selected by {body.decided_by}; skills: {', '.join(resource.skills)}." for resource in chosen]
             incident.recommendation.conflicts = warnings
             incident.status, incident.last_decision = "response_dispatched", body.decision
-            event(incident, "modified" if body.decision == "modify" else "approved", body.decided_by,
-                  f"Response {'modified and ' if body.decision == 'modify' else ''}approved. Assigned: {', '.join(r.name for r in chosen)}. " + body.note)
+            event(incident, "approved", body.decided_by,
+                  f"Response approved. Assigned: {', '.join(r.name for r in chosen)}. " + body.note)
             if warnings:
                 event(incident, "coverage", "Pulse · coordinator", " ".join(warnings))
-            queue_emergency(db, incident)
         database.save_incident(db, incident)
     return incident
 
@@ -200,9 +197,111 @@ def alert_assigned_volunteers(incident_id: str, body: AlertInput) -> Incident:
     with database.connection(write=True) as db:
         incident = require_incident(db, incident_id)
         require_open(incident)
-        if not incident.assigned_responders:
+        if incident.status not in ("response_dispatched", "in_progress") or not incident.assigned_responders:
             raise HTTPException(status_code=409, detail="Approve a response before alerting volunteers.")
-        event(incident, "volunteer_alert", body.alerted_by, body.message)
-        queue_alerts(db, incident, incident.assigned_responders, body.message, "manager")
+        volunteer_ids = {r.id for r in database.list_resources(db) if r.id.startswith("VOL-")}
+        recipients = [id_ for id_ in incident.assigned_responders if id_ in volunteer_ids]
+        messages = body.messages or []
+        if messages:
+            ids = [item.volunteer_id for item in messages]
+            if len(set(ids)) != len(ids) or set(ids) != set(recipients):
+                raise HTTPException(status_code=422, detail="Provide exactly one message for every assigned volunteer.")
+            message_pairs = [(item.volunteer_id, item.message) for item in messages]
+        else:
+            message_pairs = [(id_, body.message or "") for id_ in recipients]
+        for volunteer_id, message in message_pairs:
+            queue_alerts(db, incident, [volunteer_id], message, "manager")
+        event(incident, "volunteer_alert", body.alerted_by,
+              f"Manager sent individual alert instructions to {len(message_pairs)} assigned volunteers.")
         database.save_incident(db, incident)
     return incident
+
+
+@router.post("/{incident_id}/suggestion", response_model=Incident)
+def modify_suggestion(incident_id: str, body: ResponseModificationInput) -> Incident:
+    with database.connection(write=True) as db:
+        incident = require_incident(db, incident_id)
+        require_open(incident)
+        if incident.status not in ("reported", "awaiting_clarification", "awaiting_approval"):
+            raise HTTPException(status_code=409, detail="Only a suggested response can be modified. Submit an update to request a new review.")
+        ids = body.responder_ids
+        if len(set(ids)) != len(ids):
+            raise HTTPException(status_code=422, detail="Select each responder only once.")
+        resources = database.list_resources(db)
+        chosen = []
+        for resource_id in ids:
+            resource = next((item for item in resources if item.id == resource_id), None)
+            if resource is None:
+                raise HTTPException(status_code=422, detail=f"Unknown responder: {resource_id}.")
+            if resource.current_assignment != incident.id and (not resource.available or resource.current_assignment):
+                raise HTTPException(status_code=409, detail=f"{resource.name} is no longer available. Refresh and review the suggestion.")
+            chosen.append(resource)
+        plan = incident.recommendation
+        if incident.type == "medical":
+            if plan.medical_assistance_needed and not any({"first_aid", "paramedic"}.intersection(item.skills) for item in chosen):
+                raise HTTPException(status_code=422, detail="The response must include a first-aid responder or paramedic.")
+        elif not any(REQUIRED_SKILLS[incident.type] in item.skills for item in chosen):
+            raise HTTPException(status_code=422, detail="The response must include a responder with the required incident skill.")
+
+        old_assignments = {item.resource_id: item for item in plan.assignments}
+        assignments = []
+        for resource in chosen:
+            previous = old_assignments.get(resource.id)
+            matching_need = next((item for item in plan.responder_needs if item.required_skill in resource.skills), None)
+            skill = previous.required_skill if previous and previous.required_skill in resource.skills else (
+                matching_need.required_skill if matching_need else next(
+                    (item for item in resource.skills if item in ("first_aid", "paramedic", "safeguarding", "security", "site_operations", "communication")),
+                    "communication",
+                )
+            )
+            responsibility = previous.responsibility if previous else matching_need.responsibility if matching_need else (
+                f"Support the {incident.type.replace('_', ' ')} response at {incident.location} as directed by the manager."
+            )
+            assignments.append(ResponderAssignment(
+                resource_id=resource.id, resource_name=resource.name, resource_role=resource.role,
+                resource_zone=resource.zone, required_skill=skill, responsibility=responsibility,
+            ))
+        plan.recommended_responders = ids
+        plan.responders_needed = len(ids)
+        plan.assignments = assignments
+        plan.responder_needs = [ResponderNeed(required_skill=item.required_skill, responsibility=item.responsibility) for item in assignments]
+        plan.actions = body.actions
+        plan.reasoning = [f"{resource.name} selected by {body.modified_by}; skills: {', '.join(resource.skills)}." for resource in chosen]
+        plan.conflicts = coverage_conflicts(ids, resources, incident.id)
+        plan.manager_edited = True
+        incident.last_decision = None
+        event(incident, "suggestion_modified", body.modified_by,
+              f"Suggested response updated for {', '.join(item.name for item in chosen)}. Manager approval is still required. " + body.note)
+        database.save_incident(db, incident)
+    return incident
+
+
+@router.post("/{incident_id}/alert-drafts", response_model=AlertDrafts)
+def draft_responder_alerts(incident_id: str) -> AlertDrafts:
+    with database.connection() as db:
+        incident = require_incident(db, incident_id)
+        require_open(incident)
+        if incident.status not in ("response_dispatched", "in_progress") or not incident.assigned_responders:
+            raise HTTPException(status_code=409, detail="Approve and assign a response before drafting volunteer alerts.")
+        resources = {resource.id: resource for resource in database.list_resources(db)}
+        responder_assignments = {item.resource_id: item for item in incident.recommendation.assignments}
+        recipients = [resources[id_] for id_ in incident.assigned_responders
+                      if id_ in resources and id_.startswith("VOL-")]
+        assignments = []
+        for resource in recipients:
+            current = responder_assignments.get(resource.id)
+            assignments.append(current or ResponderAssignment(
+                resource_id=resource.id, resource_name=resource.name, resource_role=resource.role,
+                resource_zone=resource.zone, required_skill=next(
+                    (skill for skill in resource.skills if skill in ("first_aid", "paramedic", "safeguarding", "security", "site_operations", "communication")),
+                    "communication",
+                ), responsibility="Attend the incident and assist as directed by the manager.",
+            ))
+    try:
+        messages, mode = generate_alert_messages(incident, assignments)
+    except AnalysisServiceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return AlertDrafts(mode=mode, drafts=[AlertDraft(
+        volunteer_id=resource.id, volunteer_name=resource.name, role=resource.role,
+        task=assignment.responsibility, message=message,
+    ) for resource, assignment, message in zip(recipients, assignments, messages)])

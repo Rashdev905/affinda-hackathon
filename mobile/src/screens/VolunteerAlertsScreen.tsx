@@ -62,6 +62,6 @@ export function VolunteerAlertsScreen({ volunteerId, onOpen, inbox, duty }: {
         <Button title="Open incident details" icon="arrow-forward" onPress={() => onOpen(incident.id)} />
       </Card>;
     })}
-    <Text style={s.small}>Demo recipient selection: emergency reports alert all demo volunteers until proximity matching is added.</Text>
+    <Text style={s.small}>Volunteer alerts are sent by a manager to responders assigned to the incident.</Text>
   </ScrollView>;
 }

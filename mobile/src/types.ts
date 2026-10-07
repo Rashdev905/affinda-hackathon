@@ -24,6 +24,7 @@ export interface Recommendation {
   actions: string[]
   reasoning: string[]
   conflicts: string[]
+  manager_edited?: boolean
   requires_human_approval: true
 }
 
@@ -59,7 +60,7 @@ export interface Incident {
 }
 
 export interface Decision {
-  decision: 'approve' | 'modify' | 'reject'
+  decision: 'approve' | 'reject'
   responder_ids?: string[]
   actions?: string[]
   note?: string
@@ -77,4 +78,12 @@ export interface VolunteerAlert {
   created_at: string
   acknowledged_at: string | null
   active: boolean
+}
+
+export interface AlertDraft {
+  volunteer_id: string
+  volunteer_name: string
+  role: string
+  task: string
+  message: string
 }

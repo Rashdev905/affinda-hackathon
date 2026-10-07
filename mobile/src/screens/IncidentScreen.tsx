@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { client, errorMessage, usePolling } from '../api';
 import { useConnection } from '../connection';
 import { Button, Card, Field, Heading, Icon, IncidentBadges, Notice, palette, s, timestamp, typeLabels } from '../ui';
-import type { Incident, Resource } from '../types';
+import type { AlertDraft, Incident, Resource } from '../types';
 
 type Action = 'modify' | 'reject' | 'resolve';
 
@@ -41,8 +41,8 @@ function DecisionSheet({ action, incident, resources, busy, error, onClose, onSu
             <Field label="Response actions (one per line)" multiline value={actions} onChangeText={setActions} maxLength={5000} />
           </Card>}
           <Card><Field label={action === 'resolve' ? 'Resolution note' : 'Reason for this decision'} multiline value={note} onChangeText={setNote} maxLength={2000} placeholder="Add context for the team…" />
-            {action === 'modify' && <Text style={s.small}>Confirming approves this edited response and assigns the selected resources.</Text>}
-            <Button title={action === 'modify' ? 'Approve modified response' : action === 'reject' ? 'Confirm rejection' : 'Confirm resolution'}
+            {action === 'modify' && <Text style={s.small}>Saving updates the suggested response only. Review it on the incident screen, then approve it separately when ready.</Text>}
+            <Button title={action === 'modify' ? 'Save modified response' : action === 'reject' ? 'Confirm rejection' : 'Confirm resolution'}
               busy={busy} disabled={!note.trim() || (action === 'modify' && (!ids.length || !actions.trim()))}
               onPress={() => onSubmit(note, ids, actions.split('\n').map(item => item.trim()).filter(Boolean))} />
             <Button title="Cancel" secondary disabled={busy} onPress={onClose} />
@@ -64,7 +64,44 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [update, setUpdate] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
+  const [alertDrafts, setAlertDrafts] = useState<AlertDraft[]>([]);
+  const [draftMode, setDraftMode] = useState<'openai' | 'mock' | 'ollama' | null>(null);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState('');
+  const generatedFor = useRef('');
+
+  const assignedVolunteerIds = incident?.assigned_responders.filter(value => value.startsWith('VOL-')) ?? [];
+  const responseApproved = incident ? ['response_dispatched', 'in_progress'].includes(incident.status) : false;
+  const draftKey = incident ? [id, incident.summary, incident.location, ...assignedVolunteerIds,
+    ...(incident.recommendation.assignments ?? []).map(item => `${item.resource_id}:${item.responsibility}`)].join('|') : '';
+
+  useEffect(() => {
+    if (!canManage || !incident || !assignedVolunteerIds.length || !responseApproved
+      || generatedFor.current === draftKey) return;
+    generatedFor.current = draftKey;
+    const byId = new Map((incident.recommendation.assignments ?? []).map(item => [item.resource_id, item]));
+    const fallback = assignedVolunteerIds.map(volunteerId => {
+      const resource = resources.data?.find(item => item.id === volunteerId);
+      const assignment = byId.get(volunteerId);
+      const task = assignment?.responsibility ?? 'Attend the incident and assist as directed by the manager.';
+      return { volunteer_id: volunteerId, volunteer_name: assignment?.resource_name ?? resource?.name ?? volunteerId,
+        role: assignment?.resource_role ?? resource?.role ?? 'Volunteer', task,
+        message: `${incident.summary} Location: ${incident.location}. Your task: ${task}` };
+    });
+    setAlertDrafts(fallback);
+    setDraftMode(null);
+    setDraftError('');
+    setDraftLoading(true);
+    void client(url).alertDrafts(id).then(result => {
+      if (generatedFor.current !== draftKey) return;
+      setAlertDrafts(result.drafts);
+      setDraftMode(result.mode);
+    }).catch(err => {
+      if (generatedFor.current === draftKey) setDraftError(errorMessage(err));
+    }).finally(() => {
+      if (generatedFor.current === draftKey) setDraftLoading(false);
+    });
+  }, [url, id, draftKey, canManage, responseApproved]);
 
   async function perform(work: () => Promise<unknown>, success: string) {
     setBusy(true); setError(''); setMessage('');
@@ -92,6 +129,7 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
         <Text accessibilityRole="header" style={s.h2}>{resolved ? 'Recorded response' : canDecide ? 'Suggested response' : 'Approved response'}</Text>
         <Text style={s.small}>{canDecide ? 'Awaiting manager approval' : 'Reviewed by the manager'} · {incident.parser_mode === 'openai' ? 'AI analysis' : 'Mock analysis'}</Text>
         {incident.last_decision === 'reject' && <Notice text="The previous suggestion was rejected. Review or modify before approving." />}
+        {recommendation.manager_edited && <Notice text="Modified response saved. Review the responder assignments and actions below; approval is still required." />}
         <Text style={s.h3}>Medical assistance: {(recommendation.medical_assistance_needed ?? (incident.type === 'medical')) ? 'Needed' : 'Not indicated'}</Text>
         <Text style={s.small}>Suggested team: {respondersNeeded} {respondersNeeded === 1 ? 'person' : 'people'} · {matchedResponderIds.length} matched to free responders</Text>
         {!!matchedResponderIds.length && <Text style={s.h3}>Matched responders</Text>}
@@ -128,12 +166,21 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
           await client(url).update(id, update, reportedBy); setUpdate('');
         }, 'Update added to the timeline.')} />
       </Card>}
-      {canManage && !resolved && incident.assigned_responders.length > 0 && <Card>
-        <Text style={s.h2}>Alert assigned volunteers</Text>
-        <Text style={s.small}>In-app alert for {incident.assigned_responders.length} assigned responder{incident.assigned_responders.length === 1 ? '' : 's'}.</Text>
-        <Field label="Message to responders" multiline value={alertMessage} onChangeText={setAlertMessage} maxLength={500} placeholder="Please confirm when you arrive." />
-        <Button title="Send volunteer alert" icon="notifications-outline" busy={busy} disabled={alertMessage.trim().length < 3}
-          onPress={() => void perform(() => client(url).alert(id, alertMessage.trim()).then(() => setAlertMessage('')), 'Alert sent to assigned volunteers.')} />
+      {canManage && !resolved && responseApproved && assignedVolunteerIds.length > 0 && <Card>
+        <Text style={s.h2}>Review volunteer alert messages</Text>
+        <Text style={s.small}>This works the same for High, Medium, and Low priority incidents. Review and edit each assigned volunteer’s message before sending; no alert is sent until you press the button below.</Text>
+        <Notice text={draftError} kind="error" />
+        <Notice text={draftLoading ? 'Generating individual message suggestions…' : draftMode === 'openai' ? 'Suggested by AI. Edit any message before sending.' : draftMode === 'ollama' ? 'Suggested by local Ollama model. Edit any message before sending.' : draftMode === 'mock' ? 'Template suggestions shown. Configure an AI provider for generated wording.' : undefined} />
+        {alertDrafts.map((draft, index) => <View key={draft.volunteer_id} style={{ gap: 8 }}>
+          <Text style={s.h3}>{draft.volunteer_name} · {draft.role}</Text>
+          <Text style={s.small}>Assigned task: {draft.task}</Text>
+          <Field label={`Alert message for ${draft.volunteer_name}`} multiline value={draft.message}
+            onChangeText={value => setAlertDrafts(current => current.map((item, itemIndex) => itemIndex === index ? { ...item, message: value } : item))}
+            editable={!draftLoading} maxLength={500} placeholder="Situation, location, and your task" />
+        </View>)}
+        <Button title="Send reviewed alerts" icon="notifications-outline" busy={busy}
+          disabled={draftLoading || alertDrafts.length !== assignedVolunteerIds.length || alertDrafts.some(item => item.message.trim().length < 3)}
+          onPress={() => void perform(() => client(url).alert(id, alertDrafts.map(({ volunteer_id, message: text }) => ({ volunteer_id, message: text.trim() }))), 'Individual alerts sent to assigned volunteers.')} />
       </Card>}
       <Card><Text style={s.h2}>Incident timeline</Text>{incident.timeline.map(entry => <View key={entry.id} style={{ borderLeftWidth: 2, borderLeftColor: '#bfd1aa', paddingLeft: 14, gap: 6 }}>
         <Text style={s.label}>{entry.actor}</Text><Text style={s.small}>{timestamp(entry.timestamp)}</Text><Text style={s.body}>{entry.message}</Text>
@@ -144,9 +191,10 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
         }} />
       </Card>}
     </ScrollView>
-    {canManage && action && <DecisionSheet key={action} action={action} incident={incident} resources={resources.data ?? []} busy={busy} error={error} onClose={() => setAction(null)}
+      {canManage && action && <DecisionSheet key={action} action={action} incident={incident} resources={resources.data ?? []} busy={busy} error={error} onClose={() => setAction(null)}
       onSubmit={(note, ids, actions) => void perform(() => action === 'resolve' ? client(url).resolve(id, note)
-        : client(url).decide(id, { decision: action, note, ...(action === 'modify' ? { responder_ids: ids, actions } : {}) }),
-      action === 'resolve' ? 'Incident resolved. Assigned resources released.' : action === 'reject' ? 'Suggestion rejected. No new resources assigned.' : 'Modified response approved.')} />}
+        : action === 'modify' ? client(url).modifySuggestion(id, ids, actions, note)
+          : client(url).decide(id, { decision: 'reject', note }),
+      action === 'resolve' ? 'Incident resolved. Assigned resources released.' : action === 'reject' ? 'Suggestion rejected. No new resources assigned.' : 'Modified suggestion saved. Review the updated response before approving.')} />}
   </>;
 }

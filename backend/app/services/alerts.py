@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from .. import database
 from ..schemas import Incident, VolunteerAlert
-from .incidents import event, now
+from .incidents import now
 
 
 def save_alert(db: sqlite3.Connection, alert: VolunteerAlert) -> None:
@@ -29,16 +29,6 @@ def queue_alerts(db: sqlite3.Connection, incident: Incident, recipients: list[st
             instructions=[location_step, "Contact your supervisor and follow their instructions.",
                           "Send an incident update when you arrive or need help."],
         ))
-
-
-def queue_emergency(db: sqlite3.Connection, incident: Incident) -> None:
-    # Emergency notifications are sent only after a manager approves and assigns a response.
-    if incident.urgency not in ("high", "critical") or incident.status != "response_dispatched" or not incident.assigned_responders:
-        return
-    recipients = incident.assigned_responders
-    queue_alerts(db, incident, recipients, incident.summary, "automatic")
-    event(incident, "emergency_alert", "Pulse · demo alerts",
-          f"Emergency alert queued for {len(recipients)} manager-approved responders.")
 
 
 def inbox(db: sqlite3.Connection, volunteer_id: str) -> list[VolunteerAlert]:

@@ -41,7 +41,7 @@ def refresh(incident: Incident, db: sqlite3.Connection) -> Incident:
             assignment.resource_name = assignment.resource_name or resource.name
             assignment.resource_role = assignment.resource_role or resource.role
             assignment.resource_zone = assignment.resource_zone or resource.zone
-    if incident.status not in ["resolved", "response_dispatched", "in_progress"]:
+    if incident.status not in ["resolved", "response_dispatched", "in_progress"] and not incident.recommendation.manager_edited:
         recommendation = incident.recommendation
         plan = ResponsePlan(
             medical_assistance_needed=recommendation.medical_assistance_needed,
