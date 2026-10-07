@@ -33,7 +33,7 @@ function Workspace() {
   }, [incidentId, tab]);
   useEffect(() => { setIncidentId(null); }, [url]);
   if (!ready) return <View style={styles.loading}><ActivityIndicator color={palette.green} /><Text>Opening Pulse…</Text></View>;
-  const pages = [<ReportScreen key={`report-${url}`} onOpen={setIncidentId} />, <BoardScreen key={`board-${url}`} onOpen={setIncidentId} />,
+  const pages = [<ReportScreen key={`report-${url}`} active={tab === 0 && !incidentId} onOpen={setIncidentId} />, <BoardScreen key={`board-${url}`} onOpen={setIncidentId} />,
     <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" />];
   return <SafeAreaView style={styles.root}>
     <StatusBar style="dark" />

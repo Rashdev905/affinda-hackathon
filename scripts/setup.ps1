@@ -10,6 +10,8 @@ if (-not (Test-Path -LiteralPath 'backend\.venv\Scripts\python.exe')) {
 }
 & (Get-PulsePython) -m pip install -r backend/requirements-lock.txt
 if ($LASTEXITCODE -ne 0) { throw 'Backend dependency installation failed.' }
+& (Join-Path $PSScriptRoot 'setup-speech.ps1')
+Set-Location -LiteralPath $PulseRoot
 
 if ($InstallLocalNode) {
     New-Item -ItemType Directory -Force -Path '.tools' | Out-Null

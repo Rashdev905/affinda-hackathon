@@ -45,6 +45,24 @@ export function client(base: string) {
   };
 }
 
+export async function transcribeRecording(base: string, uri: string, signal: AbortSignal): Promise<string> {
+  if (!base) throw new Error('Set your Python server address in Connection first.');
+  const form = new FormData();
+  // React Native uploads the local file; fetch supplies the multipart boundary.
+  form.append('audio', { uri, name: 'voice-report.m4a', type: 'audio/mp4' } as unknown as Blob);
+  let response: Response;
+  try {
+    response = await fetch(base + '/api/transcriptions', { method: 'POST', body: form, signal });
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error('Could not send the recording. Check Wi-Fi and your backend, then retry. Your recording is still here.');
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'Could not transcribe this recording. Retry or type your report.');
+  if (typeof data?.text !== 'string' || !data.text.trim()) throw new Error('No speech was detected. Try recording again or type your report.');
+  return data.text.trim();
+}
+
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
 }

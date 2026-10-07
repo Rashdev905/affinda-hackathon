@@ -27,7 +27,8 @@ The build includes ARM64 and ARMv7 libraries and requires **Android 7.0 / API 24
 
 ## Demo flow
 
-- In **Report**, select **Medical**, submit, and answer the breathing follow-up.
+- In **Report**, tap **Tap to record**, describe what happened and where, then tap **Stop & transcribe**. Allow microphone access the first time. Review or edit the transcript, then **Submit incident**.
+- **Type a report instead** opens the text input and example reports. For the medical demo, select **Medical**, submit, and answer the breathing follow-up. Follow-ups also accept voice recordings.
 - In **Incidents**, open the report and review the suggested responders, actions, reasoning, and coverage warnings.
 - **Approve response** assigns the simulated responders. **Modify response** edits the selection/actions before approval. **Reject suggestion** records a reason without dispatching.
 - In **Team**, check resource availability and current assignments.
@@ -35,6 +36,20 @@ The build includes ARM64 and ARMv7 libraries and requires **Android 7.0 / API 24
 - **Resolve incident**, add an outcome, and confirm. Assigned resources become available again. **Share draft report** opens Android's share sheet.
 
 There are 20 simulated resources across six festival zones. Incidents and timelines persist in `backend/data/pulse.db`. Role navigation is for the demo, not authentication. No real responders are contacted.
+
+## Voice reporting
+
+The phone records AAC audio and uploads it to `POST /api/transcriptions` as a multipart `audio` field. The Python backend runs faster-whisper `base.en` locally on the laptop CPU and returns an editable English transcript. Recording and transcription do not create an incident; the user explicitly submits the reviewed text through the existing reports API. No cloud speech account or API key is required.
+
+The English model is already installed in this checkout at `backend/models/base.en`. On a fresh setup, `scripts/setup.ps1` installs it after the Python dependencies. To download or repair it separately:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup-speech.ps1
+```
+
+Model setup requires internet once; subsequent transcription uses only the local model. Python packages remain in `backend/.venv`. Voice messages stop automatically after 1 minute 50 seconds, or when leaving the Report screen or backgrounding the app. The API rejects recordings over two minutes or 10 MB. Silence, unreadable audio, missing models, and a busy recognizer return actionable errors. Failed uploads can be retried from the same screen without recording again; typing remains available. Recordings are temporary, are not stored with incidents, and are deleted from the phone after successful transcription or discard. Restarting the app does not preserve a pending recording.
+
+Install APK version **0.2.1** over the previous app to get recording controls and microphone permission. Version 0.2.1 corrects an incompatible asset dependency in 0.2.0. The existing backend with `--reload` picks up code changes automatically. Speech recognition is real; incident parsing and response suggestions still use the demo mock. Check transcripts, especially place names and speech in noisy surroundings.
 
 ## Local environments
 
@@ -83,13 +98,14 @@ Scan its QR code on the same Wi-Fi. The script prefers the Wi-Fi interface; over
 powershell -ExecutionPolicy Bypass -File scripts/check.ps1
 ```
 
-Runs the Python API/state tests, mobile TypeScript checks, and native component/API tests. Android and iOS JavaScript bundles can also be compiled with `npm run export` in `mobile/` after adding the local Node runtime to PATH using `scripts/common.ps1`.
+Runs the Python API/state tests, native dependency compatibility checks (including transitive dependencies), mobile TypeScript checks, and native component/API tests. The APK builder also checks both the source and isolated build dependencies, removing changed or removed package copies before synchronizing. This prevents a downgraded dependency from leaving incompatible files in the incremental build. Android and iOS JavaScript bundles can also be compiled with `npm run export` in `mobile/` after adding the local Node runtime to PATH using `scripts/common.ps1`.
 
 ```text
 mobile/
   App.tsx                      native navigation and safe areas
   src/screens/                 reporting, incidents, decisions, team, connection
-  src/api.ts                   REST client and foreground polling
+  src/api.ts                   REST client, audio upload, foreground polling
+  src/VoiceRecorder.tsx        native recording and transcription controls
   src/connection.tsx           verified server URL saved on the phone
   src/ui.tsx                   native controls and styles
   src/types.ts                 API contracts
@@ -98,7 +114,8 @@ mobile/
              | REST JSON
 backend/
   app/main.py                  API, health, local APK download
-  app/routers/                 reports, incidents, resources
+  app/routers/                 reports, incidents, resources, transcription
+  app/services/transcription.py bounded audio decoding and local speech model
   app/services/ai_mock.py       replaceable deterministic parser
   app/services/coordinator.py  responder eligibility and coverage
   app/database.py              transactional SQLite persistence
@@ -113,6 +130,6 @@ The app uses native text fields, buttons, sheets, switches, scrolling, keyboard 
 - A phone's `localhost` refers to the phone. Use the computer's Wi-Fi IP, not `localhost` or `0.0.0.0`.
 - Allow Python on the computer's private-network firewall if prompted. Guest/campus Wi-Fi may isolate devices; a shared phone hotspot is an alternative. The scripts do not modify firewall rules.
 - A compile, signature verification, and native component tests do not replace testing on a real phone. No physical Android device is attached to this workspace.
-- AI parsing, responder reasoning, and report generation remain deterministic demo logic. No API key is needed. Voice, push notifications, offline report queuing, authentication, and duplicate/cluster detection are not included.
+- AI parsing, responder reasoning, and report generation remain deterministic demo logic. No API key is needed. Push notifications, offline report queuing, authentication, and duplicate/cluster detection are not included.
 - SDK 54 was selected for Expo Go compatibility during development. Its older development toolchain inherits npm advisories. Do not run `npm audit fix --force` to change Expo/React Native versions independently; upgrade the SDK as a unit before production work.
 - The next AI integration point is `backend/app/services/ai_mock.py`. Preserve schema validation, deterministic responder checks, and human approval.

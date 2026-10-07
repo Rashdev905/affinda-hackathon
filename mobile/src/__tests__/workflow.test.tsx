@@ -42,6 +42,7 @@ beforeEach(() => {
 test('native report form submits a fixture, answers clarification, and opens the incident', async () => {
   const open = jest.fn();
   render(<ReportScreen onOpen={open} />);
+  fireEvent.press(screen.getByRole('button', { name: 'Type a report instead' }));
   fireEvent.press(screen.getByRole('button', { name: 'Medical +' }));
   fireEvent.press(screen.getByRole('button', { name: 'Submit incident' }));
   await screen.findByText('Your report is with the safety lead.');
