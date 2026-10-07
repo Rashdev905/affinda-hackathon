@@ -17,6 +17,7 @@ import type { Resource } from './src/types';
 
 type Mode = 'Manager' | 'Volunteer';
 const modeKey = 'pulse.mode.v1';
+const resolvedClearedAtKey = 'pulse.manager.resolvedClearedAt.v1';
 const managerTabs: { label: string; icon: IconName }[] = [
   { label: 'Operations', icon: 'grid-outline' },
   { label: 'Team', icon: 'people-outline' },
@@ -38,6 +39,7 @@ function Workspace() {
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [volunteerName, setVolunteerName] = useState('');
   const [incidentId, setIncidentId] = useState<string | null>(null);
+  const [resolvedClearedAt, setResolvedClearedAt] = useState<string | null>(null);
   const tabs = mode === 'Manager' ? managerTabs : volunteerTabs;
   const connectionTab = tabs.length - 1;
   useEffect(() => {
@@ -45,6 +47,13 @@ function Workspace() {
     void AsyncStorage.getItem(modeKey).then(value => {
       if (mounted && (value === 'Manager' || value === 'Volunteer')) setMode(value);
     }).catch(() => {}).finally(() => { if (mounted) setModeReady(true); });
+    return () => { mounted = false; };
+  }, []);
+  useEffect(() => {
+    let mounted = true;
+    void AsyncStorage.getItem(resolvedClearedAtKey).then(value => {
+      if (mounted && value) setResolvedClearedAt(value);
+    }).catch(() => {});
     return () => { mounted = false; };
   }, []);
   useEffect(() => {
@@ -63,6 +72,11 @@ function Workspace() {
     setTab(0);
     try { await AsyncStorage.setItem(modeKey, next); } catch { /* Keep this session usable if storage is unavailable. */ }
   }
+  async function clearResolvedFromApp() {
+    const cutoff = new Date().toISOString();
+    await AsyncStorage.setItem(resolvedClearedAtKey, cutoff);
+    setResolvedClearedAt(cutoff);
+  }
   if (!ready || !modeReady) return <View style={styles.loading}><ActivityIndicator color={palette.green} /><Text>Opening Pulse…</Text></View>;
   if (configuring) return <SafeAreaView style={styles.root}><ConnectionScreen onReturnToMenu={() => setConfiguring(false)}
     returnLabel={mode === 'Volunteer' ? 'Back to volunteer login' : 'Back to role selection'} /></SafeAreaView>;
@@ -72,7 +86,7 @@ function Workspace() {
     setVolunteerName(volunteer.name);
   }} onBack={() => setMode(null)} onSettings={() => setConfiguring(true)} />;
   const pages = mode === 'Manager'
-    ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />]
+    ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} hiddenResolvedBefore={resolvedClearedAt} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />]
     : [<ReportScreen key={`report-${url}-${volunteerId}`} active={tab === 0 && !incidentId} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
       <VolunteerAlertsScreen key={`alerts-${url}`} volunteerId={volunteerId!} onOpen={setIncidentId} />,
       <ConnectionScreen key="connection" onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />];

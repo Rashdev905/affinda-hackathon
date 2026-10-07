@@ -102,6 +102,6 @@ A coordinated response.</Text><Text style={[s.body, { color: '#cddfc0' }]}>You s
       </Card>
       <Button title="New report" icon="add" secondary disabled={busy || voiceBusy} onPress={() => { setIncident(null); setError(''); setMessage(''); setUpdate(''); setShowText(false); }} />
     </>}
-    <Text style={s.small}>Demo mode · Mock parser · Simulated responders</Text>
+    <Text style={s.small}>Analysis: {shown?.parser_mode === 'openai' ? 'OpenAI' : shown?.parser_mode === 'mock' ? 'mock' : 'server-configured'} · Manager approval before assignment</Text>
   </ScrollView>;
 }

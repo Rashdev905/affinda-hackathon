@@ -42,8 +42,11 @@ export function Badge({ text, tone = 'neutral' }: { text: string; tone?: string 
   const urgent = ['critical', 'high'].includes(tone);
   return <View style={[s.badge, urgent && { backgroundColor: tone === 'critical' ? '#fbe7e4' : '#fbefdf' }]}><Text style={[s.badgeText, urgent && { color: '#92472b' }]}>{text}</Text></View>;
 }
-export function IncidentBadges({ status, urgency }: { status: IncidentStatus; urgency: Urgency }) {
-  return <View style={s.row}><Badge text={`${urgency} priority`} tone={urgency} /><Badge text={statusLabels[status]} /></View>;
+export function IncidentBadges({ status, urgency, priorityScore }: { status: IncidentStatus; urgency: Urgency; priorityScore?: number }) {
+  const label = priorityScore !== undefined
+    ? priorityScore >= 70 ? 'High' : priorityScore >= 35 ? 'Medium' : 'Low'
+    : urgency === 'critical' ? 'High' : urgency[0].toUpperCase() + urgency.slice(1);
+  return <View style={s.row}><Badge text={`${label} priority`} tone={label.toLowerCase()} /><Badge text={statusLabels[status]} /></View>;
 }
 export function Empty({ title, body }: { title: string; body: string }) {
   return <View style={s.empty}><Icon name="shield-checkmark-outline" size={40} /><Text style={s.h2}>{title}</Text><Text style={[s.body, { textAlign: 'center' }]}>{body}</Text></View>;

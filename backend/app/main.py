@@ -35,7 +35,10 @@ app.include_router(transcriptions.router)
 def health():
     with database.connection() as db:
         db.execute("SELECT 1 FROM incidents LIMIT 1")
-    return {"status": "ok", "service": "pulse", "parser_mode": "mock"}
+    analysis_mode = os.getenv("PULSE_AI_MODE", "").strip().lower()
+    if not analysis_mode:
+        analysis_mode = "openai" if os.getenv("OPENAI_API_KEY") else "mock"
+    return {"status": "ok", "service": "pulse", "analysis_mode": analysis_mode}
 
 
 @app.get("/downloads/pulse.apk", response_class=FileResponse, tags=["local demo"])

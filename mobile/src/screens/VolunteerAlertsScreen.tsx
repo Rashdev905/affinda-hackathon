@@ -27,7 +27,7 @@ export function VolunteerAlertsScreen({ volunteerId, onOpen }: {
         <View style={s.row}><Badge text={typeLabels[incident.type]} /><Text style={s.small}>{timestamp(incident.updated_at)}</Text></View>
         <Text style={s.h2}>{incident.summary}</Text>
         <Text style={s.body}>{incident.location}</Text>
-        <IncidentBadges status={incident.status} urgency={incident.urgency} />
+        <IncidentBadges status={incident.status} urgency={incident.urgency} priorityScore={incident.priority_score} />
         {alerts.map(alert => <Notice key={alert.id} text={`Manager alert - ${timestamp(alert.timestamp)}\n${alert.message}`} kind="info" />)}
         <Text style={s.h3}>Your response</Text>
         {incident.recommendation.actions.map((action, index) => <Text key={index} style={s.body}>{index + 1}. {action}</Text>)}

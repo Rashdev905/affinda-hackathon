@@ -16,6 +16,10 @@ export interface Resource {
 
 export interface Recommendation {
   recommended_responders: string[]
+  medical_assistance_needed?: boolean
+  responders_needed?: number
+  responder_needs?: { required_skill: string; responsibility: string }[]
+  assignments?: { resource_id: string; resource_name?: string | null; resource_role?: string | null; resource_zone?: string | null; required_skill: string; responsibility: string }[]
   alternatives: string[]
   actions: string[]
   reasoning: string[]
@@ -38,6 +42,7 @@ export interface Incident {
   summary: string
   observations: string[]
   urgency: Urgency
+  priority_score?: number
   missing_information: string[]
   follow_up_question: string | null
   status: IncidentStatus
@@ -50,7 +55,7 @@ export interface Incident {
   assigned_responders: string[]
   resolution_note: string | null
   draft_report: string | null
-  parser_mode: 'mock'
+  parser_mode: 'mock' | 'openai'
 }
 
 export interface Decision {

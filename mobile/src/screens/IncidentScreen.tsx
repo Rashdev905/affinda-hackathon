@@ -77,23 +77,34 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
   const canDecide = ['reported', 'awaiting_clarification', 'awaiting_approval'].includes(incident.status);
   const resolved = incident.status === 'resolved';
   const recommendation = incident.recommendation;
+  const assignments = recommendation.assignments ?? [];
+  const matchedResponderIds = [...new Set([...recommendation.recommended_responders, ...assignments.map(item => item.resource_id)])];
+  const respondersNeeded = recommendation.responders_needed ?? matchedResponderIds.length;
   return <>
     <ScrollView contentContainerStyle={s.screen} keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={false} onRefresh={() => { void refresh(); void resources.refresh(); }} tintColor={palette.green} />}>
       <Button title="Back to workspace" icon="arrow-back" secondary onPress={onBack} />
       <Heading kicker={`${incident.id} · ${typeLabels[incident.type]}`} title={incident.summary} subtitle={incident.location} />
-      <IncidentBadges status={incident.status} urgency={incident.urgency} />
+      <IncidentBadges status={incident.status} urgency={incident.urgency} priorityScore={incident.priority_score} />
       <Notice text={error || loadError || resources.error} kind="error" /><Notice text={message} kind="success" />
       {!!incident.missing_information.length && <Notice text={`Information to confirm: ${incident.follow_up_question ?? incident.missing_information.join(', ')}`} />}
       <Card>
         <Text accessibilityRole="header" style={s.h2}>{resolved ? 'Recorded response' : canDecide ? 'Suggested response' : 'Approved response'}</Text>
-        <Text style={s.small}>{canDecide ? 'Awaiting safety lead approval' : 'Reviewed by the safety lead'} · Demo</Text>
+        <Text style={s.small}>{canDecide ? 'Awaiting manager approval' : 'Reviewed by the manager'} · {incident.parser_mode === 'openai' ? 'AI analysis' : 'Mock analysis'}</Text>
         {incident.last_decision === 'reject' && <Notice text="The previous suggestion was rejected. Review or modify before approving." />}
-        {recommendation.recommended_responders.map(resourceId => {
+        <Text style={s.h3}>Medical assistance: {(recommendation.medical_assistance_needed ?? (incident.type === 'medical')) ? 'Needed' : 'Not indicated'}</Text>
+        <Text style={s.small}>Suggested team: {respondersNeeded} {respondersNeeded === 1 ? 'person' : 'people'} · {matchedResponderIds.length} matched to free responders</Text>
+        {!!matchedResponderIds.length && <Text style={s.h3}>Matched responders</Text>}
+        {matchedResponderIds.map(resourceId => {
           const resource = resources.data?.find(item => item.id === resourceId);
-          return <View key={resourceId} style={{ gap: 4 }}><Text style={s.h3}>{resource?.name ?? resourceId}</Text><Text style={s.small}>{resource?.role} · {resource?.zone}</Text></View>;
+          const assignment = assignments.find(item => item.resource_id === resourceId);
+          return <View key={resourceId} style={{ gap: 4 }}>
+            <Text style={s.h3}>{assignment?.resource_name ?? resource?.name ?? resourceId}</Text>
+            <Text style={s.small}>{assignment?.resource_role ?? resource?.role ?? 'Responder'} · {assignment?.resource_zone ?? resource?.zone ?? 'Zone to confirm'}{assignment?.required_skill ? ` / ${assignment.required_skill.replaceAll('_', ' ')}` : ''}</Text>
+            {assignment?.responsibility && <Text style={s.body}>{assignment.responsibility}</Text>}
+          </View>;
         })}
-        {!recommendation.recommended_responders.length && <Notice text="No suitable responder is currently available. Review the resource roster." />}
+        {!matchedResponderIds.length && <Notice text="No suitable responder is currently available. Review the resource roster." />}
         <View style={s.divider} />
         <Text style={s.h3}>Response actions</Text>
         {recommendation.actions.map((item, index) => <Text key={index} style={s.body}>{index + 1}. {item}</Text>)}

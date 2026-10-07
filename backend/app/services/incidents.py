@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from .. import database
-from ..schemas import Incident, TimelineEvent
+from ..schemas import Incident, ResponsePlan, TimelineEvent
 from .coordinator import recommend
 
 
@@ -32,7 +32,23 @@ def require_open(incident: Incident) -> None:
 
 
 def refresh(incident: Incident, db: sqlite3.Connection) -> Incident:
+    resources = database.list_resources(db)
+    # Older saved recommendations may contain responder IDs without a name snapshot.
+    by_id = {resource.id: resource for resource in resources}
+    for assignment in incident.recommendation.assignments:
+        resource = by_id.get(assignment.resource_id)
+        if resource:
+            assignment.resource_name = assignment.resource_name or resource.name
+            assignment.resource_role = assignment.resource_role or resource.role
+            assignment.resource_zone = assignment.resource_zone or resource.zone
     if incident.status not in ["resolved", "response_dispatched", "in_progress"]:
-        incident.recommendation = recommend(incident, database.list_resources(db))
+        recommendation = incident.recommendation
+        plan = ResponsePlan(
+            medical_assistance_needed=recommendation.medical_assistance_needed,
+            responder_needs=recommendation.responder_needs,
+            actions=recommendation.actions or ["Review the incident and confirm an appropriate response."],
+            reasoning=recommendation.reasoning or ["Suggested response requires manager review."],
+        ) if recommendation.responder_needs else None
+        incident.recommendation = recommend(incident, resources, plan)
     return incident
 

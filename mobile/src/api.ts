@@ -11,14 +11,14 @@ export function validateServer(value: string, allowHttp = true): string {
   return url.toString().replace(/\/$/, '');
 }
 
-export async function request<T>(base: string, path: string, body?: unknown): Promise<T> {
+export async function request<T>(base: string, path: string, body?: unknown, options?: { method?: string; headers?: Record<string, string> }): Promise<T> {
   if (!base) throw new Error('Set your Python server address in Connection first.');
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12000);
   try {
     const response = await fetch(base + path, {
-      method: body === undefined ? 'GET' : 'POST',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      method: options?.method ?? (body === undefined ? 'GET' : 'POST'),
+      headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...options?.headers },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
@@ -44,6 +44,7 @@ export function client(base: string) {
     decide: (id: string, decision: Decision) => request<Incident>(base, `/api/incidents/${id}/decision`, decision),
     resolve: (id: string, note: string) => request<Incident>(base, `/api/incidents/${id}/resolve`, { note }),
     alert: (id: string, message: string) => request<Incident>(base, `/api/incidents/${id}/alerts`, { message, alerted_by: 'Manager' }),
+    clearAllIncidents: () => request<{ deleted_count: number }>(base, '/api/incidents', undefined, { method: 'DELETE', headers: { 'X-Pulse-Mode': 'Manager' } }),
   };
 }
 

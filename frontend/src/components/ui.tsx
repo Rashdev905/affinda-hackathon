@@ -33,8 +33,11 @@ export const typeLabels: Record<IncidentType, string> = { medical: 'Medical', lo
 export function StatusBadge({ status }: { status: IncidentStatus }) {
   return <span className={`badge status-${status}`}><span className="dot" />{statusLabels[status]}</span>
 }
-export function UrgencyBadge({ urgency }: { urgency: Urgency }) {
-  return <span className={`badge urgency-${urgency}`}><span className="dot" />{urgency} priority</span>
+export function UrgencyBadge({ urgency, priorityScore }: { urgency: Urgency; priorityScore?: number }) {
+  const priority = priorityScore !== undefined
+    ? priorityScore >= 70 ? 'high' : priorityScore >= 35 ? 'medium' : 'low'
+    : urgency === 'critical' ? 'high' : urgency
+  return <span className={`badge urgency-${priority}`}><span className="dot" />{priority} priority</span>
 }
 export function ErrorNotice({ message }: { message?: string }) {
   return message ? <div className="notice notice-error" role="alert"><Icon name="alert" /><span>{message}</span></div> : null

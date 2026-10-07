@@ -62,3 +62,8 @@ def save_incident(db: sqlite3.Connection, incident: Incident) -> None:
         (incident.id, incident.model_dump_json()),
     )
 
+
+def delete_all_incidents(db: sqlite3.Connection) -> int:
+    cursor = db.execute("DELETE FROM incidents")
+    return cursor.rowcount
+

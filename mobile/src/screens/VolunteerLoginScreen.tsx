@@ -34,7 +34,7 @@ export function VolunteerLoginScreen({ onLogin, onBack, onSettings }: {
       <Field label="4-digit volunteer ID" value={identifier} onChangeText={value => setIdentifier(value.replace(/\D/g, '').slice(0, 4))}
         keyboardType="number-pad" maxLength={4} autoFocus placeholder="0001" />
       <Button title="Log in" icon="arrow-forward" busy={busy} disabled={!url || identifier.length !== 4} onPress={() => void signIn()} />
-      <Text style={s.small}>Demo IDs 0001 to 0014 map to the 14 seeded volunteers.</Text>
+      <Text style={s.small}>Demo IDs 0001 to 0016 map to the 16 seeded volunteers.</Text>
     </Card>
     {onSettings && <Button title="Connection settings" secondary icon="settings-outline" onPress={onSettings} />}
     <Button title="Back to role selection" secondary onPress={onBack} />

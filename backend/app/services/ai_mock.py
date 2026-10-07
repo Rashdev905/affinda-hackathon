@@ -27,7 +27,8 @@ def parse_report(text: str) -> ParsedReport:
     critical = bool(re.search(r"\bunconscious\b|not breathing|stopped breathing", lower))
     if re.search(r"not unconscious|no longer unconscious", lower):
         critical = False
-    urgency = "critical" if critical else "high" if type_ in ["medical", "security", "lost_person"] else "medium"
+    urgency = "critical" if critical else "high" if type_ in ["medical", "security"] else "medium" if type_ == "lost_person" else "low"
+    priority_score = 98 if critical else 82 if type_ == "medical" else 76 if type_ == "security" else 58 if type_ == "lost_person" else 42 if type_ == "hazard" else 20
     observations = []
     if critical:
         observations.append("Reported loss of consciousness or breathing concern; safety lead review required")
@@ -47,7 +48,8 @@ def parse_report(text: str) -> ParsedReport:
     question = question_for(missing)
     summary = "Person collapsed and appears dizzy" if "collapsed" in lower and "dizzy" in lower else text.strip()[:200]
     return ParsedReport(type=type_, location=location, summary=summary, observations=observations,
-                        urgency=urgency, missing_information=missing, follow_up_question=question)
+                        urgency=urgency, priority_score=priority_score,
+                        missing_information=missing, follow_up_question=question)
 
 
 def question_for(missing: list[str]) -> str | None:
@@ -76,11 +78,14 @@ def parse_update(incident: Incident, text: str) -> ParsedReport:
         missing.append("breathing_status")
     levels = ["low", "medium", "high", "critical"]
     urgency = max([incident.urgency, parsed.urgency], key=levels.index)
+    priority_score = max(incident.priority_score, parsed.priority_score)
     if answering_breathing and re.match(r"^no\b", text.lower()):
         urgency = "critical"
+        priority_score = 100
     # Do not downgrade urgency from a short reassuring update in this mock.
     return ParsedReport(
         type=type_, location=location, summary=incident.summary,
         observations=incident.observations + [text.strip()], urgency=urgency,
+        priority_score=priority_score,
         missing_information=list(dict.fromkeys(missing)), follow_up_question=question_for(missing),
     )

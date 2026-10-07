@@ -17,6 +17,8 @@ def seed_resources() -> list[Resource]:
         ("VOL-011", "Morgan Patel", "Welfare volunteer", "Lawn Stage", ["safeguarding", "communication"]),
         ("VOL-012", "Drew Williams", "Site volunteer", "River Stage", ["site_operations", "communication"]),
         ("VOL-013", "Harper Singh", "Site volunteer", "Food Village", ["site_operations", "communication"]),
+        ("VOL-015", "Paramedic Volunteer 15", "Paramedic volunteer", "Lawn Stage", ["first_aid", "paramedic", "communication"]),
+        ("VOL-016", "Paramedic Volunteer 16", "Paramedic volunteer", "River Stage", ["first_aid", "paramedic", "communication"]),
         ("VOL-014", "You · Volunteer 14", "General volunteer", "Lawn Stage", ["communication"]),
         ("SEC-001", "Security · North", "Security staff", "North Gate", ["security", "safeguarding"]),
         ("SEC-002", "Security · South", "Security staff", "South Gate", ["security", "safeguarding"]),
@@ -27,7 +29,10 @@ def seed_resources() -> list[Resource]:
     ]
     return [Resource(
         id=id_, name=name, role=role, zone=zone, skills=skills,
-        qualifications=["Simulated first-aid qualification"] if "first_aid" in skills else [],
+        qualifications=(
+            ["Simulated paramedic qualification", "Simulated first-aid qualification"] if "paramedic" in skills
+            else ["Simulated first-aid qualification"] if "first_aid" in skills else []
+        ),
         available=id_ != "VOL-010", status="on_break" if id_ == "VOL-010" else "available",
     ) for id_, name, role, zone, skills in rows]
 

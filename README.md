@@ -37,7 +37,7 @@ The build includes ARM64 and ARMv7 libraries and requires **Android 7.0 / API 24
 - Add an incident update. The mock recognizes the supplied unconsciousness escalation fixture and asks for new approval without assigning additional responders automatically.
 - **Resolve incident**, add an outcome, and confirm. Assigned resources become available again. **Share draft report** opens Android's share sheet.
 
-There are 20 simulated resources across six festival zones. Incidents and timelines persist in `backend/data/pulse.db`. The selected mode is saved on the phone; volunteers log in again after restarting. The volunteer report picker shows their own reports and current assignments. Role navigation is for the demo, not authentication or server-side authorization. No real responders are contacted.
+There are 22 simulated resources across six festival zones, including two paramedic volunteers. Incidents and timelines persist in `backend/data/pulse.db`. The selected mode is saved on the phone; volunteers log in again after restarting. The volunteer report picker shows their own reports and current assignments. Role navigation is for the demo, not authentication or server-side authorization. No real responders are contacted.
 
 ## Voice reporting
 
@@ -51,7 +51,21 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-speech.ps1
 
 Model setup requires internet once; subsequent transcription uses only the local model. Python packages remain in `backend/.venv`. Voice messages stop automatically after 1 minute 50 seconds, or when leaving the Report screen or backgrounding the app. The API rejects recordings over two minutes or 10 MB. Silence, unreadable audio, missing models, and a busy recognizer return actionable errors. Failed uploads can be retried from the same screen without recording again; typing remains available. Recordings are temporary, are not stored with incidents, and are deleted from the phone after successful transcription or discard. Restarting the app does not preserve a pending recording.
 
-Install APK version **0.3.0** over the previous app to combine Manager/Volunteer modes with voice recording. It retains the SDK-compatible native dependencies from 0.2.1. The existing backend with `--reload` picks up code changes automatically. Speech recognition is real; incident parsing and response suggestions still use the demo mock. Check transcripts, especially place names and speech in noisy surroundings.
+Install APK version **0.3.0** over the previous app to combine Manager/Volunteer modes with voice recording. It retains the SDK-compatible native dependencies from 0.2.1. The existing backend with `--reload` picks up code changes automatically. Speech recognition is local; incident analysis uses the mock unless OpenAI is configured. Check transcripts, especially place names and speech in noisy surroundings.
+
+## LLM incident analysis
+
+Without an OpenAI key, reports use the deterministic mock. To enable OpenAI analysis, set these variables in the PowerShell terminal used to start the backend:
+
+```powershell
+$env:OPENAI_API_KEY = 'your-key'
+$env:PULSE_AI_MODE = 'openai'
+# Optional; defaults to gpt-6-astra.
+$env:PULSE_OPENAI_MODEL = 'gpt-6-astra'
+powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1 -Lan
+```
+
+The backend asks OpenAI for schema-validated incident details, a 0–100 internal priority score, medical-assistance need, and per-person responder requirements. Only the score’s High/Medium/Low band is shown in the app; the manager board sorts by the numeric score. Report text and incident facts are sent to OpenAI for analysis. Volunteer names and resource IDs are not sent; the backend matches recommended skills against free resources and only updates assignments after manager approval. OpenAI Structured Outputs is used to constrain the analysis response to the backend schema. [OpenAI Structured Outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)
 
 ## Local environments
 
@@ -118,7 +132,8 @@ backend/
   app/main.py                  API, health, local APK download
   app/routers/                 reports, incidents, resources, transcription
   app/services/transcription.py bounded audio decoding and local speech model
-  app/services/ai_mock.py       replaceable deterministic parser
+  app/services/ai_analysis.py   structured OpenAI incident analysis and mock fallback
+  app/services/ai_mock.py       deterministic no-key report parser
   app/services/coordinator.py  responder eligibility and coverage
   app/database.py              transactional SQLite persistence
   tests/test_workflow.py       workflow, concurrency, download tests
@@ -132,6 +147,6 @@ The app uses native text fields, buttons, sheets, switches, scrolling, keyboard 
 - A phone's `localhost` refers to the phone. Use the computer's Wi-Fi IP, not `localhost` or `0.0.0.0`.
 - Allow Python on the computer's private-network firewall if prompted. Guest/campus Wi-Fi may isolate devices; a shared phone hotspot is an alternative. The scripts do not modify firewall rules.
 - A compile, signature verification, and native component tests do not replace testing on a real phone. No physical Android device is attached to this workspace.
-- AI parsing, responder reasoning, and report generation remain deterministic demo logic. No API key is needed. Push notifications, offline report queuing, authentication, and duplicate/cluster detection are not included.
+- Without OpenAI configuration, incident parsing and responder suggestions use deterministic demo logic. With OpenAI enabled, score and response needs come from the model, while responder matching and assignment validation remain deterministic. Push notifications, offline report queuing, authentication, and duplicate/cluster detection are not included.
 - SDK 54 was selected for Expo Go compatibility during development. Its older development toolchain inherits npm advisories. Do not run `npm audit fix --force` to change Expo/React Native versions independently; upgrade the SDK as a unit before production work.
-- The next AI integration point is `backend/app/services/ai_mock.py`. Preserve schema validation, deterministic responder checks, and human approval.
+- OpenAI report analysis lives in `backend/app/services/ai_analysis.py`; `backend/app/services/ai_mock.py` remains the no-key fallback. Preserve schema validation, deterministic responder checks, and manager approval.
