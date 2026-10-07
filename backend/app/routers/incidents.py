@@ -4,6 +4,7 @@ from .. import database
 from ..models import REQUIRED_SKILLS
 from ..schemas import AlertInput, DecisionInput, Incident, ResolveInput, UpdateInput
 from ..services.ai_mock import parse_update
+from ..services.alerts import queue_alerts, queue_emergency
 from ..services.coordinator import coverage_conflicts, recommend
 from ..services.incidents import event, refresh, require_incident, require_open
 
@@ -47,6 +48,8 @@ def update_incident(incident_id: str, body: UpdateInput) -> Incident:
             incident.last_decision = None
         if incident.status not in ["in_progress", "response_dispatched"]:
             incident.recommendation = recommend(incident, database.list_resources(db))
+        if escalated:
+            queue_emergency(db, incident)
         database.save_incident(db, incident)
     return incident
 
@@ -142,5 +145,6 @@ def alert_assigned_volunteers(incident_id: str, body: AlertInput) -> Incident:
         if not incident.assigned_responders:
             raise HTTPException(status_code=409, detail="Approve a response before alerting volunteers.")
         event(incident, "volunteer_alert", body.alerted_by, body.message)
+        queue_alerts(db, incident, incident.assigned_responders, body.message, "manager")
         database.save_incident(db, incident)
     return incident

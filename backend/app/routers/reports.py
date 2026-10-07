@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from .. import database
 from ..schemas import Incident, Recommendation, ReportInput
 from ..services.ai_mock import parse_report
+from ..services.alerts import queue_emergency
 from ..services.coordinator import recommend
 from ..services.incidents import event, now
 
@@ -25,6 +26,6 @@ def create_report(body: ReportInput) -> Incident:
         incident.recommendation = recommend(incident, database.list_resources(db))
         event(incident, "reported", body.reported_by, body.text)
         event(incident, "suggestion", "Pulse · mock parser", "Report structured. Suggested response awaits a safety lead decision.")
+        queue_emergency(db, incident)
         database.save_incident(db, incident)
     return incident
-
