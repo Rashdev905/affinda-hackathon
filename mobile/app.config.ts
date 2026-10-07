@@ -5,7 +5,7 @@ const production = process.env.APP_VARIANT === 'production';
 const config: ExpoConfig = {
   name: 'Pulse',
   slug: 'pulse-riverside',
-  version: '0.3.0',
+  version: '0.5.2',
   scheme: 'pulse',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
@@ -21,12 +21,13 @@ const config: ExpoConfig = {
       ITSAppUsesNonExemptEncryption: false,
     },
   },
-  android: { package: 'com.riverside.pulse', versionCode: 4 },
+  android: { package: 'com.riverside.pulse', versionCode: 8 },
   plugins: [
     'expo-asset',
     ['expo-audio', { microphonePermission: 'Allow Pulse to record your voice report.', recordAudioAndroid: true }],
     ['expo-build-properties', { android: { usesCleartextTraffic: !production } }],
     './plugins/withPulseIcon',
+    './plugins/withPulseAlerts',
   ],
   extra: { allowHttp: !production },
 };

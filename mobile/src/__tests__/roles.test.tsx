@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { AppState } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { AppState, NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import App from '../../App';
-import type { Incident, Resource } from '../types';
+import type { Incident, Resource, VolunteerAlert } from '../types';
 
 const mockConnection = { url: 'http://pc:8000', ready: true, save: jest.fn().mockResolvedValue(undefined) };
 jest.mock('../connection', () => ({
@@ -16,6 +16,7 @@ const volunteer: Resource = {
 };
 let incident: Incident;
 let posts: { path: string; body: any }[];
+let volunteerAlerts: VolunteerAlert[];
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -31,6 +32,7 @@ beforeEach(async () => {
     timeline: [], last_decision: null, assigned_responders: [], resolution_note: null, draft_report: null, parser_mode: 'mock',
   };
   posts = [];
+  volunteerAlerts = [];
   global.fetch = jest.fn(async (url, options) => {
     const path = String(url).replace('http://pc:8000', '');
     const body = options?.body instanceof FormData ? options.body : options?.body ? JSON.parse(String(options.body)) : null;
@@ -38,9 +40,12 @@ beforeEach(async () => {
     if (path === '/api/reports') incident = { ...incident, reported_by: body.reported_by };
     if (path.endsWith('/updates')) incident = { ...incident, missing_information: [], follow_up_question: null, status: 'awaiting_approval' };
     if (path.endsWith('/decision')) incident = { ...incident, status: 'response_dispatched', assigned_responders: ['VOL-002'], last_decision: 'approve' };
-    if (path.endsWith('/alerts')) incident = { ...incident, timeline: [{ id: 'alert-1', kind: 'volunteer_alert', actor: 'Manager', message: body.message, timestamp: incident.updated_at }] };
+    if (path.endsWith('/alerts') && options?.method === 'POST') incident = { ...incident, timeline: [{ id: 'alert-1', kind: 'volunteer_alert', actor: 'Manager', message: body.message, timestamp: incident.updated_at }] };
+    if (path.endsWith('/acknowledge')) volunteerAlerts = volunteerAlerts.map(alert => ({ ...alert, acknowledged_at: '2026-10-07T03:00:00Z' }));
     const data = path === '/health' ? { status: 'ok', service: 'pulse' }
       : path === '/api/volunteers/0002' ? volunteer
+      : path === '/api/volunteers/VOL-002/alerts' ? volunteerAlerts
+      : path.endsWith('/acknowledge') ? volunteerAlerts[0]
       : path === '/api/resources' ? [volunteer]
       : path === '/api/incidents' ? [incident]
       : path === '/api/transcriptions' ? { text: 'Someone collapsed near the lawn stage toilets.' } : incident;
@@ -85,6 +90,7 @@ test('volunteer voice report, manager approval and alert work together across mo
   await screen.findByText('Update added to the timeline.');
   expect(posts.at(-1)?.body.reported_by).toBe('VOL-002');
   await returnToMenu();
+  expect(NativeModules.PulseAlerts.stop).toHaveBeenCalled();
   fireEvent.press(screen.getByRole('button', { name: 'Continue as manager' }));
   fireEvent.press(await screen.findByRole('button', { name: 'Open INC-MERGED: Person collapsed' }));
   fireEvent.press(await screen.findByRole('button', { name: 'Approve response' }));
@@ -131,4 +137,21 @@ test('volunteer existing-report list only contains their own or assigned inciden
   fireEvent.press(screen.getByRole('button', { name: 'Update an existing incident' }));
   await screen.findByText('No active incidents reported by or assigned to you.');
   expect(screen.queryByRole('button', { name: 'Update INC-MERGED' })).toBeNull();
+});
+
+test('emergency alert interrupts voice recording on the Report tab without uploading it', async () => {
+  render(<App />);
+  await signIn();
+  fireEvent.press(screen.getByRole('button', { name: 'Record voice message' }));
+  await screen.findByRole('button', { name: 'Stop and transcribe' });
+  volunteerAlerts = [{ id: 'emergency-voice', incident_id: incident.id, volunteer_id: 'VOL-002',
+    source: 'automatic', urgency: 'critical', message: 'Emergency nearby', location: 'Lawn Stage',
+    instructions: ['Contact the supervisor.'], created_at: incident.created_at, acknowledged_at: null, active: true }];
+  await screen.findByText('EMERGENCY ALERT', {}, { timeout: 4000 });
+  await waitFor(() => expect(recorder.stop).toHaveBeenCalledTimes(1));
+  expect(posts).toEqual([]);
+  await act(async () => { fireEvent.press(screen.getByRole('button', { name: 'Stop alert' })); });
+  await waitFor(() => expect(screen.queryByText('EMERGENCY ALERT')).toBeNull());
+  expect(posts[0].path).toBe('/api/volunteers/VOL-002/alerts/emergency-voice/acknowledge');
+  expect(screen.getByText('Recording stopped. Tap Transcribe recording when you are ready.')).toBeTruthy();
 });

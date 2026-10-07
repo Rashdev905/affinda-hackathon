@@ -50,6 +50,20 @@ class AlertInput(InputModel):
     alerted_by: str = Field(default="Safety lead", min_length=1, max_length=80)
 
 
+class VolunteerAlert(BaseModel):
+    id: str
+    incident_id: str
+    volunteer_id: str
+    source: Literal["automatic", "manager"]
+    urgency: Urgency
+    location: str
+    message: str
+    instructions: list[str]
+    created_at: str
+    acknowledged_at: str | None = None
+    active: bool = True
+
+
 class ParsedReport(BaseModel):
     type: IncidentType
     location: str

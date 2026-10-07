@@ -69,7 +69,7 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
         {!!text && <Text style={s.small}>Check names, location, and key details before submitting.</Text>}
         {text.length > 5000 && <Notice text="Please shorten the report to 5,000 characters before submitting." kind="error" />}
         <Button title="Submit incident" icon="arrow-forward" busy={busy} disabled={voiceBusy || !url || text.trim().length < 3 || text.length > 5000} onPress={() => void submit(false)} />
-        <Text style={s.small}>A person reviews every response. Nothing is dispatched automatically.</Text>
+        <Text style={s.small}>Emergency reports alert volunteers automatically. A manager approves responder assignments.</Text>
       </Card>
       <Button title="Update an existing incident" secondary icon="chatbubble-outline" disabled={voiceBusy || busy} onPress={() => setShowExisting(!showExisting)} />
       {showExisting && <Card>
