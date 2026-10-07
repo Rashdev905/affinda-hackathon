@@ -5,7 +5,9 @@ import { useConnection } from '../connection';
 import { Button, Card, Field, Heading, Icon, Notice, s } from '../ui';
 import type { Resource } from '../types';
 
-export function VolunteerLoginScreen({ onLogin, onBack }: { onLogin: (volunteer: Resource) => void; onBack: () => void }) {
+export function VolunteerLoginScreen({ onLogin, onBack, onSettings }: {
+  onLogin: (volunteer: Resource) => void; onBack: () => void; onSettings?: () => void;
+}) {
   const { url } = useConnection();
   const [identifier, setIdentifier] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,6 +36,7 @@ export function VolunteerLoginScreen({ onLogin, onBack }: { onLogin: (volunteer:
       <Button title="Log in" icon="arrow-forward" busy={busy} disabled={!url || identifier.length !== 4} onPress={() => void signIn()} />
       <Text style={s.small}>Demo IDs 0001 to 0014 map to the 14 seeded volunteers.</Text>
     </Card>
+    {onSettings && <Button title="Connection settings" secondary icon="settings-outline" onPress={onSettings} />}
     <Button title="Back to role selection" secondary onPress={onBack} />
   </ScrollView>;
 }

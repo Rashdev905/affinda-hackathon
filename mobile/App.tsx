@@ -34,6 +34,7 @@ function Workspace() {
   const [tab, setTab] = useState(0);
   const [mode, setMode] = useState<Mode | null>(null);
   const [modeReady, setModeReady] = useState(false);
+  const [configuring, setConfiguring] = useState(false);
   const [volunteerId, setVolunteerId] = useState<string | null>(null);
   const [volunteerName, setVolunteerName] = useState('');
   const [incidentId, setIncidentId] = useState<string | null>(null);
@@ -48,13 +49,14 @@ function Workspace() {
   }, []);
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (configuring) { setConfiguring(false); return true; }
       if (incidentId) { setIncidentId(null); return true; }
       if (tab !== 0) { setTab(0); return true; }
       return false;
     });
     return () => subscription.remove();
-  }, [incidentId, tab]);
-  useEffect(() => { setIncidentId(null); }, [url]);
+  }, [incidentId, tab, configuring]);
+  useEffect(() => { setIncidentId(null); setVolunteerId(null); setVolunteerName(''); }, [url]);
   async function chooseMode(next: Mode) {
     setMode(next);
     setIncidentId(null);
@@ -62,14 +64,16 @@ function Workspace() {
     try { await AsyncStorage.setItem(modeKey, next); } catch { /* Keep this session usable if storage is unavailable. */ }
   }
   if (!ready || !modeReady) return <View style={styles.loading}><ActivityIndicator color={palette.green} /><Text>Opening Pulse…</Text></View>;
-  if (!mode) return <ModeMenu onChoose={chooseMode} />;
+  if (configuring) return <SafeAreaView style={styles.root}><ConnectionScreen onReturnToMenu={() => setConfiguring(false)}
+    returnLabel={mode === 'Volunteer' ? 'Back to volunteer login' : 'Back to role selection'} /></SafeAreaView>;
+  if (!mode) return <ModeMenu onChoose={chooseMode} onSettings={() => setConfiguring(true)} />;
   if (mode === 'Volunteer' && !volunteerId) return <VolunteerLoginScreen onLogin={(volunteer: Resource) => {
     setVolunteerId(volunteer.id);
     setVolunteerName(volunteer.name);
-  }} onBack={() => setMode(null)} />;
+  }} onBack={() => setMode(null)} onSettings={() => setConfiguring(true)} />;
   const pages = mode === 'Manager'
     ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />]
-    : [<ReportScreen key={`report-${url}`} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
+    : [<ReportScreen key={`report-${url}-${volunteerId}`} active={tab === 0 && !incidentId} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
       <VolunteerAlertsScreen key={`alerts-${url}`} volunteerId={volunteerId!} onOpen={setIncidentId} />,
       <ConnectionScreen key="connection" onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />];
   return <SafeAreaView style={styles.root}>
@@ -81,7 +85,8 @@ function Workspace() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {pages.map((page, index) => <View key={index} style={{ flex: 1, display: !incidentId && tab === index ? 'flex' : 'none' }}
         accessibilityElementsHidden={!!incidentId || tab !== index} importantForAccessibility={!incidentId && tab === index ? 'auto' : 'no-hide-descendants'}>{page}</View>)}
-      {incidentId && <IncidentScreen key={`${mode}-${incidentId}`} id={incidentId} canManage={mode === 'Manager'} onBack={() => setIncidentId(null)} />}
+      {incidentId && <IncidentScreen key={`${mode}-${incidentId}`} id={incidentId} canManage={mode === 'Manager'}
+        reportedBy={mode === 'Volunteer' ? volunteerId! : 'Safety lead'} onBack={() => setIncidentId(null)} />}
     </KeyboardAvoidingView>
     <View style={styles.tabs}>{tabs.map((item, index) => <Pressable key={item.label} accessibilityRole="tab" accessibilityLabel={item.label}
       accessibilityState={{ selected: tab === index && !incidentId }} onPress={() => { setIncidentId(null); setTab(index); }}
@@ -91,7 +96,7 @@ function Workspace() {
   </SafeAreaView>;
 }
 
-function ModeMenu({ onChoose }: { onChoose: (mode: Mode) => void }) {
+function ModeMenu({ onChoose, onSettings }: { onChoose: (mode: Mode) => void; onSettings: () => void }) {
   return <SafeAreaView style={styles.root}>
     <StatusBar style="dark" />
     <ScrollView contentContainerStyle={s.screen}>
@@ -109,6 +114,7 @@ function ModeMenu({ onChoose }: { onChoose: (mode: Mode) => void }) {
         <Text style={s.body}>Report situations and see incident assignments and manager alerts.</Text>
         <Button title="Continue as volunteer" icon="arrow-forward" onPress={() => void onChoose('Volunteer')} />
       </Card>
+      <Button title="Connection settings" secondary icon="settings-outline" onPress={onSettings} />
       <Text style={s.small}>Your choice is saved on this phone. You can return here from Settings.</Text>
     </ScrollView>
   </SafeAreaView>;

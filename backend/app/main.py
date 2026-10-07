@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from . import database
-from .routers import incidents, reports, resources
+from .routers import incidents, reports, resources, transcriptions
 
 ANDROID_APK = Path(__file__).resolve().parents[2] / "artifacts" / "Pulse-Android.apk"
 
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(reports.router)
 app.include_router(incidents.router)
 app.include_router(resources.router)
+app.include_router(transcriptions.router)
 
 
 @app.get("/health")

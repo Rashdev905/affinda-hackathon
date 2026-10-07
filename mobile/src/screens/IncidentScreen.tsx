@@ -53,7 +53,9 @@ function DecisionSheet({ action, incident, resources, busy, error, onClose, onSu
   </Modal>;
 }
 
-export function IncidentScreen({ id, onBack, canManage = true }: { id: string; onBack: () => void; canManage?: boolean }) {
+export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Safety lead' }: {
+  id: string; onBack: () => void; canManage?: boolean; reportedBy?: string;
+}) {
   const { url } = useConnection();
   const { data: incident, error: loadError, loading, refresh } = usePolling<Incident>(url, `/api/incidents/${id}`);
   const resources = usePolling<Resource[]>(url, '/api/resources');
@@ -98,21 +100,21 @@ export function IncidentScreen({ id, onBack, canManage = true }: { id: string; o
         <Text style={s.h3}>Why this response?</Text>
         {recommendation.reasoning.map((item, index) => <Text key={index} style={s.body}>{item}</Text>)}
         {recommendation.conflicts.map((item, index) => <Notice key={index} text={item} />)}
-        {canDecide && <>
+        {canManage && canDecide && <>
           <Button title="Approve response" icon="checkmark" busy={busy} disabled={!recommendation.recommended_responders.length}
             onPress={() => void perform(() => client(url).decide(id, { decision: 'approve', responder_ids: recommendation.recommended_responders }), 'Response approved. Demo resources assigned.')} />
           <Button title="Modify response" secondary icon="create-outline" disabled={busy} onPress={() => { setError(''); setAction('modify'); }} />
           <Button title="Reject suggestion" secondary icon="close" disabled={busy} onPress={() => { setError(''); setAction('reject'); }} />
         </>}
-        <Text style={s.small}>Pulse suggests. You decide. Only your approval assigns resources.</Text>
+        <Text style={s.small}>{canManage ? 'Pulse suggests. You decide. Only your approval assigns resources.' : 'Your manager reviews and approves the response.'}</Text>
       </Card>
-      {!resolved && <Button title="Resolve incident" icon="checkmark-done" secondary disabled={busy} onPress={() => { setError(''); setAction('resolve'); }} />}
+      {canManage && !resolved && <Button title="Resolve incident" icon="checkmark-done" secondary disabled={busy} onPress={() => { setError(''); setAction('resolve'); }} />}
       <Card><Text style={s.h2}>Incident brief</Text>{incident.observations.map((item, index) => <Text key={index} style={s.body}>• {item}</Text>)}
         <Text style={s.small}>Reported by {incident.reported_by} · {timestamp(incident.created_at)}</Text>
       </Card>
       {!resolved && <Card><Field label="Add an incident update" multiline value={update} onChangeText={setUpdate} maxLength={5000} placeholder="What has changed?" />
         <Button title="Add update" secondary busy={busy} disabled={!update.trim()} onPress={() => void perform(async () => {
-          await client(url).update(id, update, 'Safety lead'); setUpdate('');
+          await client(url).update(id, update, reportedBy); setUpdate('');
         }, 'Update added to the timeline.')} />
       </Card>}
       {canManage && !resolved && incident.assigned_responders.length > 0 && <Card>
@@ -131,7 +133,7 @@ export function IncidentScreen({ id, onBack, canManage = true }: { id: string; o
         }} />
       </Card>}
     </ScrollView>
-    {action && <DecisionSheet key={action} action={action} incident={incident} resources={resources.data ?? []} busy={busy} error={error} onClose={() => setAction(null)}
+    {canManage && action && <DecisionSheet key={action} action={action} incident={incident} resources={resources.data ?? []} busy={busy} error={error} onClose={() => setAction(null)}
       onSubmit={(note, ids, actions) => void perform(() => action === 'resolve' ? client(url).resolve(id, note)
         : client(url).decide(id, { decision: action, note, ...(action === 'modify' ? { responder_ids: ids, actions } : {}) }),
       action === 'resolve' ? 'Incident resolved. Assigned resources released.' : action === 'reject' ? 'Suggestion rejected. No new resources assigned.' : 'Modified response approved.')} />}

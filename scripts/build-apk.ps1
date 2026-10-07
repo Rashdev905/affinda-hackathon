@@ -14,6 +14,8 @@ $env:NODE_ENV = 'production'
 $env:APP_VARIANT = 'preview'
 if ($ApiUrl) { $env:EXPO_PUBLIC_API_URL = $ApiUrl }
 $sourceDirectory = Join-Path $PulseRoot 'mobile'
+& node (Join-Path $PSScriptRoot 'check-native-deps.cjs') $sourceDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Native dependency compatibility check failed.' }
 $buildRecord = Join-Path $PulseRoot '.run\apk-build-root.txt'
 if (-not $BuildDirectory) {
     if (Test-Path -LiteralPath $buildRecord) { $BuildDirectory = (Get-Content -LiteralPath $buildRecord -Raw).Trim() }
@@ -24,15 +26,42 @@ if ($BuildDirectory -notmatch '^C:\\pulse-apk-[0-9a-f]{8}$') {
 }
 New-Item -ItemType Directory -Force -Path $BuildDirectory, (Split-Path -Parent $buildRecord) | Out-Null
 Set-Content -LiteralPath $buildRecord -Value $BuildDirectory
+# Remove only changed/removed package copies before /E sync. Otherwise stale peer
+# modules and native source files survive a downgrade in this incremental folder.
+$resolvedBuild = (Resolve-Path -LiteralPath $BuildDirectory).Path
+if ($resolvedBuild -notmatch '^C:\\pulse-apk-[0-9a-f]{8}$' -or (Get-Item -LiteralPath $resolvedBuild).LinkType) {
+    throw 'The isolated Android build folder must be a physical short C: directory.'
+}
+$oldLockPath = Join-Path $resolvedBuild 'package-lock.json'
+if (Test-Path -LiteralPath $oldLockPath) {
+    $changedPackages = & node (Join-Path $PSScriptRoot 'changed-native-deps.cjs') $oldLockPath (Join-Path $sourceDirectory 'package-lock.json')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not compare isolated dependency lockfiles.' }
+    foreach ($relative in ($changedPackages | ConvertFrom-Json)) {
+        $target = [IO.Path]::GetFullPath((Join-Path $resolvedBuild $relative))
+        if (-not $target.StartsWith($resolvedBuild + '\node_modules\') -or $relative.Contains('..')) {
+            throw 'Package cleanup escaped the isolated build dependency folder.'
+        }
+        if (Test-Path -LiteralPath $target) {
+            $resolvedTarget = (Resolve-Path -LiteralPath $target).Path
+            if (-not $resolvedTarget.StartsWith($resolvedBuild + '\node_modules\') -or (Get-Item -LiteralPath $target).LinkType) {
+                throw 'Refusing to remove a dependency outside the physical isolated build folder.'
+            }
+            Remove-Item -LiteralPath $resolvedTarget -Recurse -Force
+        }
+    }
+}
 $excluded = @((Join-Path $sourceDirectory 'android'), (Join-Path $sourceDirectory 'dist'), (Join-Path $sourceDirectory '.expo'), '.cxx', '.gradle')
 # Exclude native Gradle outputs, but preserve packages' shipped JavaScript build/ folders.
-$gradleFiles = Get-ChildItem -LiteralPath (Join-Path $sourceDirectory 'node_modules') -Filter 'build.gradle*' -File -Recurse
+$gradleFiles = & node (Join-Path $PSScriptRoot 'native-gradle-files.cjs') (Join-Path $sourceDirectory 'node_modules')
+if ($LASTEXITCODE -ne 0) { throw 'Could not enumerate native package build files.' }
 foreach ($gradleFile in $gradleFiles) {
-    $candidate = Join-Path $gradleFile.DirectoryName 'build'
+    $candidate = Join-Path (Split-Path -Parent $gradleFile) 'build'
     if (Test-Path -LiteralPath $candidate) { $excluded += $candidate }
 }
 & robocopy.exe $sourceDirectory $BuildDirectory /E /MT:16 /R:1 /W:1 /NFL /NDL /NJH /NJS /NP /XD $excluded
 if ($LASTEXITCODE -ge 8) { throw 'Synchronizing the isolated Android build workspace failed.' }
+& node (Join-Path $PSScriptRoot 'check-native-deps.cjs') $BuildDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Isolated build dependencies do not match the supported SDK.' }
 Write-Output "Building the mobile app in $BuildDirectory"
 
 # Windows native tooling needs a short path without spaces. This temporary drive
