@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, type T
 import { Ionicons } from '@expo/vector-icons';
 import type { IncidentStatus, IncidentType, Urgency } from './types';
 
-export const palette = { green: '#173d32', lime: '#d5ef96', bg: '#f5f7f1', text: '#243b32', muted: '#65745f', line: '#dde5d5', red: '#983f33' };
+export const palette = { green: '#AF361D', lime: '#F6EAE6', bg: '#F5F4F1', text: '#20201E', muted: '#686761', line: '#E2E0DA', red: '#7E2616' };
 export const statusLabels: Record<IncidentStatus, string> = {
   reported: 'Reported', awaiting_clarification: 'Needs clarification', awaiting_approval: 'Awaiting approval',
   response_dispatched: 'Response dispatched', in_progress: 'In progress', resolved: 'Resolved',
@@ -52,7 +52,7 @@ export function timestamp(value: string) {
   return new Date(value).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Sydney' });
 }
 export const s = StyleSheet.create({
-  screen: { padding: 20, paddingBottom: 32, gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center' },
+  screen: { padding: 20, paddingBottom: 32, gap: 18, width: '100%', maxWidth: 760, alignSelf: 'center', backgroundColor: palette.bg },
   heading: { gap: 8, paddingVertical: 6 },
   kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: palette.muted },
   title: { fontSize: 30, fontWeight: '800', letterSpacing: -1, color: palette.text },
@@ -60,17 +60,17 @@ export const s = StyleSheet.create({
   h3: { fontSize: 16, fontWeight: '700', color: palette.text },
   body: { fontSize: 15, lineHeight: 23, color: palette.muted },
   small: { fontSize: 12, lineHeight: 18, color: palette.muted },
-  card: { padding: 20, gap: 16, borderWidth: 1, borderColor: palette.line, borderRadius: 18, backgroundColor: '#fff' },
+  card: { padding: 20, gap: 16, borderWidth: 1, borderColor: palette.line, borderRadius: 10, backgroundColor: '#fff' },
   row: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  button: { minHeight: 50, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: palette.green, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: palette.green },
+  button: { minHeight: 50, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: palette.green, borderRadius: 9, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9, borderWidth: 1, borderColor: palette.green },
   secondary: { backgroundColor: '#fff', borderColor: palette.line },
   buttonText: { color: '#fff', fontSize: 15, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   label: { fontSize: 15, fontWeight: '600', color: palette.text },
-  input: { borderWidth: 1, borderColor: palette.line, borderRadius: 10, backgroundColor: '#fbfcf8', padding: 14, fontSize: 16, lineHeight: 24, color: palette.text, minHeight: 50 },
-  notice: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, backgroundColor: '#eaf1df', borderRadius: 10, gap: 10 },
+  input: { borderWidth: 1, borderColor: palette.line, borderRadius: 9, backgroundColor: '#fff', padding: 14, fontSize: 16, lineHeight: 24, color: palette.text, minHeight: 50 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, backgroundColor: '#F6EAE6', borderRadius: 9, gap: 10 },
   noticeText: { flex: 1, fontSize: 14, lineHeight: 21, color: '#496137' },
-  badge: { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 9, backgroundColor: '#edf2e6' },
-  badgeText: { fontSize: 12, color: '#526b40', fontWeight: '600' },
+  badge: { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 9, backgroundColor: '#F6EAE6' },
+  badgeText: { fontSize: 12, color: '#942D18', fontWeight: '600' },
   divider: { height: 1, backgroundColor: palette.line, marginVertical: 4 },
   empty: { alignItems: 'center', padding: 28, gap: 16 },
   chip: { paddingVertical: 12, paddingHorizontal: 13, minHeight: 44, borderWidth: 1, borderColor: palette.line, borderRadius: 9, backgroundColor: '#fff', justifyContent: 'center' },
