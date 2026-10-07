@@ -41,15 +41,18 @@ beforeEach(() => {
 
 test('native report form submits a fixture, answers clarification, and opens the incident', async () => {
   const open = jest.fn();
-  render(<ReportScreen onOpen={open} />);
+  render(<ReportScreen onOpen={open} volunteerId="VOL-002" volunteerName="Jamie Chen" />);
+  fireEvent.press(screen.getByRole('button', { name: 'Type a report instead' }));
   fireEvent.press(screen.getByRole('button', { name: 'Medical +' }));
   fireEvent.press(screen.getByRole('button', { name: 'Submit incident' }));
   await screen.findByText('Your report is with the safety lead.');
   expect(calls[0].body.text).toContain('Someone collapsed');
+  expect(calls[0].body.reported_by).toBe('VOL-002');
   fireEvent.changeText(screen.getByLabelText('Is the person breathing normally?'), 'Yes, breathing normally.');
   fireEvent.press(screen.getByRole('button', { name: 'Send update' }));
   await screen.findByText('Update sent to the safety lead.');
   expect(calls[1].path).toBe('/api/incidents/INC-TEST/updates');
+  expect(calls[1].body.reported_by).toBe('VOL-002');
   fireEvent.press(screen.getByRole('button', { name: 'View incident' }));
   expect(open).toHaveBeenCalledWith('INC-TEST');
 });

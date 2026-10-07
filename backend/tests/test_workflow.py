@@ -199,3 +199,43 @@ def test_android_download_serves_only_the_built_artifact(client, tmp_path, monke
     assert response.content == b"APK download fixture"
     assert response.headers["content-type"] == "application/vnd.android.package-archive"
     assert 'filename="Pulse-Android.apk"' in response.headers["content-disposition"]
+
+
+def test_voice_report_keeps_volunteer_identity_through_manager_assignment_and_alert(client, monkeypatch):
+    from app.routers import transcriptions
+
+    volunteer = client.get("/api/volunteers/0002")
+    assert volunteer.status_code == 200
+    volunteer_id = volunteer.json()["id"]
+    assert volunteer_id == "VOL-002"
+    monkeypatch.setattr(transcriptions, "transcribe_recording", lambda data: {
+        "text": MEDICAL, "language": "en", "duration_seconds": 9.0,
+    })
+    transcript = client.post("/api/transcriptions", files={"audio": ("voice.m4a", b"test recording", "audio/mp4")})
+    assert transcript.status_code == 200
+    assert client.get("/api/incidents").json() == []
+    response = client.post("/api/reports", json={"text": transcript.json()["text"], "reported_by": volunteer_id})
+    assert response.status_code == 201
+    incident = response.json()
+    assert incident["reported_by"] == volunteer_id
+    assert incident["timeline"][0]["actor"] == volunteer_id
+    base = f"/api/incidents/{incident['id']}"
+    alert = {"message": "Please confirm your arrival.", "alerted_by": "Manager"}
+    assert client.post(base + "/alerts", json=alert).status_code == 409
+    assert client.post(base + "/updates", json={"text": "Yes, breathing normally.", "reported_by": volunteer_id}).status_code == 200
+    assigned = client.post(base + "/decision", json={"decision": "approve"})
+    assert assigned.status_code == 200
+    assert assigned.json()["assigned_responders"]
+    alerted = client.post(base + "/alerts", json=alert)
+    assert alerted.status_code == 200
+    assert alerted.json()["assigned_responders"] == assigned.json()["assigned_responders"]
+    assert alerted.json()["timeline"][-1]["kind"] == "volunteer_alert"
+    assert alerted.json()["timeline"][-1]["actor"] == "Manager"
+    assert client.get(base).json()["timeline"][-1]["message"] == alert["message"]
+    assert client.post(base + "/resolve", json={"note": "Completed."}).status_code == 200
+    assert client.post(base + "/alerts", json=alert).status_code == 409
+
+
+@pytest.mark.parametrize("identifier, status", [("0000", 422), ("2", 422), ("abcd", 422), ("9999", 404)])
+def test_volunteer_lookup_rejects_invalid_and_unknown_ids(client, identifier, status):
+    assert client.get(f"/api/volunteers/{identifier}").status_code == status

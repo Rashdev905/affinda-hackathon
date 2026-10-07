@@ -4,7 +4,7 @@ import { errorMessage } from '../api';
 import { useConnection } from '../connection';
 import { Button, Card, Field, Heading, Notice, s } from '../ui';
 
-export function ConnectionScreen({ onReturnToMenu }: { onReturnToMenu?: () => void }) {
+export function ConnectionScreen({ onReturnToMenu, returnLabel = 'Return to main menu' }: { onReturnToMenu?: () => void; returnLabel?: string }) {
   const { url, save } = useConnection();
   const [value, setValue] = useState(url);
   const [busy, setBusy] = useState(false);
@@ -33,7 +33,7 @@ export function ConnectionScreen({ onReturnToMenu }: { onReturnToMenu?: () => vo
       <Text style={s.body}>“localhost” on your phone means the phone itself. Use your computer’s network address instead.</Text>
     </Card>
     <Notice text="Away from this Wi-Fi, the app needs a deployed HTTPS backend. Installing the app does not put the Python server on your phone." />
-    {onReturnToMenu && <Button title="Return to main menu" secondary icon="arrow-back" onPress={onReturnToMenu} />}
+    {onReturnToMenu && <Button title={returnLabel} secondary icon="arrow-back" onPress={onReturnToMenu} />}
     <Text style={s.small}>Pulse base · Native React Native app · Mock AI · Demo roles, no authentication</Text>
   </ScrollView>;
 }
