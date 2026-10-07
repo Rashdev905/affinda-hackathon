@@ -11,8 +11,11 @@ const examples = [
   { label: 'Site hazard', text: 'There is a broken cable cover at Food Village, beside the water station.' },
 ];
 
-export function ReportScreen({ onOpen }: { onOpen: (id: string) => void }) {
+export function ReportScreen({ onOpen, volunteerId = 'VOL-014', volunteerName = 'Volunteer' }: {
+  onOpen: (id: string) => void; volunteerId?: string; volunteerName?: string;
+}) {
   const { url } = useConnection();
+  const volunteerCode = volunteerId.replace(/^VOL-/, '').padStart(4, '0');
   const reports = usePolling<Incident[]>(url, '/api/incidents');
   const [text, setText] = useState('');
   const [incident, setIncident] = useState<Incident | null>(null);
@@ -27,7 +30,7 @@ export function ReportScreen({ onOpen }: { onOpen: (id: string) => void }) {
   async function submit(isUpdate: boolean) {
     setBusy(true); setError(''); setMessage('');
     try {
-      const result = isUpdate && shown ? await client(url).update(shown.id, update) : await client(url).report(text);
+      const result = isUpdate && shown ? await client(url).update(shown.id, update, volunteerId) : await client(url).report(text, volunteerId);
       setIncident(result); setText(''); setUpdate('');
       setMessage(isUpdate ? 'Update sent to the safety lead.' : 'Your report is with the safety lead.');
       void reports.refresh();
@@ -38,7 +41,7 @@ export function ReportScreen({ onOpen }: { onOpen: (id: string) => void }) {
   return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.screen}
     refreshControl={<RefreshControl refreshing={false} onRefresh={() => void reports.refresh()} tintColor={palette.green} />}>
     <Heading kicker="ON THE GROUND. IN THE LOOP." title="Report incident." subtitle="Tell us what’s happening. We’ll help make it clear." />
-    <Badge text="Volunteer 14 · Riverside" />
+    <Badge text={`${volunteerCode} · ${volunteerName}`} />
     <Notice text={error || reports.error} kind="error" />
     <Notice text={message} kind="success" />
     {!shown ? <>
@@ -56,7 +59,7 @@ export function ReportScreen({ onOpen }: { onOpen: (id: string) => void }) {
       {showExisting && <Card>
         <Text style={s.h3}>Choose an active incident</Text>
         {!reports.data?.some(item => item.status !== 'resolved') && <Text style={s.body}>No active incidents yet.</Text>}
-        {reports.data?.filter(item => item.status !== 'resolved').map(item => <Pressable key={item.id} accessibilityRole="button"
+        {reports.data?.filter(item => item.status !== 'resolved' && (item.reported_by === volunteerId || item.assigned_responders.includes(volunteerId))).map(item => <Pressable key={item.id} accessibilityRole="button"
           accessibilityLabel={`Update ${item.id}`} style={{ gap: 5, paddingVertical: 12 }}
           onPress={() => { setIncident(item); setMessage(''); setError(''); setShowExisting(false); }}>
           <Text style={s.small}>{item.id} · {item.location}</Text><Text style={s.h3}>{item.summary}</Text>

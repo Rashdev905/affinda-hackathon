@@ -45,6 +45,11 @@ class ResolveInput(InputModel):
     resolved_by: str = Field(default="Safety lead", min_length=1, max_length=80)
 
 
+class AlertInput(InputModel):
+    message: str = Field(min_length=3, max_length=500)
+    alerted_by: str = Field(default="Safety lead", min_length=1, max_length=80)
+
+
 class ParsedReport(BaseModel):
     type: IncidentType
     location: str

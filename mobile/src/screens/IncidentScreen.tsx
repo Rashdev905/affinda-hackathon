@@ -53,7 +53,7 @@ function DecisionSheet({ action, incident, resources, busy, error, onClose, onSu
   </Modal>;
 }
 
-export function IncidentScreen({ id, onBack }: { id: string; onBack: () => void }) {
+export function IncidentScreen({ id, onBack, canManage = true }: { id: string; onBack: () => void; canManage?: boolean }) {
   const { url } = useConnection();
   const { data: incident, error: loadError, loading, refresh } = usePolling<Incident>(url, `/api/incidents/${id}`);
   const resources = usePolling<Resource[]>(url, '/api/resources');
@@ -62,6 +62,7 @@ export function IncidentScreen({ id, onBack }: { id: string; onBack: () => void 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [update, setUpdate] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
 
   async function perform(work: () => Promise<unknown>, success: string) {
     setBusy(true); setError(''); setMessage('');
@@ -113,6 +114,13 @@ export function IncidentScreen({ id, onBack }: { id: string; onBack: () => void 
         <Button title="Add update" secondary busy={busy} disabled={!update.trim()} onPress={() => void perform(async () => {
           await client(url).update(id, update, 'Safety lead'); setUpdate('');
         }, 'Update added to the timeline.')} />
+      </Card>}
+      {canManage && !resolved && incident.assigned_responders.length > 0 && <Card>
+        <Text style={s.h2}>Alert assigned volunteers</Text>
+        <Text style={s.small}>In-app alert for {incident.assigned_responders.length} assigned responder{incident.assigned_responders.length === 1 ? '' : 's'}.</Text>
+        <Field label="Message to responders" multiline value={alertMessage} onChangeText={setAlertMessage} maxLength={500} placeholder="Please confirm when you arrive." />
+        <Button title="Send volunteer alert" icon="notifications-outline" busy={busy} disabled={alertMessage.trim().length < 3}
+          onPress={() => void perform(() => client(url).alert(id, alertMessage.trim()).then(() => setAlertMessage('')), 'Alert sent to assigned volunteers.')} />
       </Card>}
       <Card><Text style={s.h2}>Incident timeline</Text>{incident.timeline.map(entry => <View key={entry.id} style={{ borderLeftWidth: 2, borderLeftColor: '#bfd1aa', paddingLeft: 14, gap: 6 }}>
         <Text style={s.label}>{entry.actor}</Text><Text style={s.small}>{timestamp(entry.timestamp)}</Text><Text style={s.body}>{entry.message}</Text>

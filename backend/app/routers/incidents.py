@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from .. import database
 from ..models import REQUIRED_SKILLS
-from ..schemas import DecisionInput, Incident, ResolveInput, UpdateInput
+from ..schemas import AlertInput, DecisionInput, Incident, ResolveInput, UpdateInput
 from ..services.ai_mock import parse_update
 from ..services.coordinator import coverage_conflicts, recommend
 from ..services.incidents import event, refresh, require_incident, require_open
@@ -130,5 +130,17 @@ def resolve(incident_id: str, body: ResolveInput) -> Incident:
             + "\n".join(f"{entry.timestamp} · {entry.actor}: {entry.message}" for entry in incident.timeline)
             + "\n\nGenerated from recorded events using a deterministic template. Review before use."
         )
+        database.save_incident(db, incident)
+    return incident
+
+
+@router.post("/{incident_id}/alerts", response_model=Incident)
+def alert_assigned_volunteers(incident_id: str, body: AlertInput) -> Incident:
+    with database.connection(write=True) as db:
+        incident = require_incident(db, incident_id)
+        require_open(incident)
+        if not incident.assigned_responders:
+            raise HTTPException(status_code=409, detail="Approve a response before alerting volunteers.")
+        event(incident, "volunteer_alert", body.alerted_by, body.message)
         database.save_incident(db, incident)
     return incident

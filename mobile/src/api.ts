@@ -1,6 +1,6 @@
 import { AppState } from 'react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Decision, Incident } from './types';
+import type { Decision, Incident, Resource } from './types';
 
 export function validateServer(value: string, allowHttp = true): string {
   const url = new URL(value.trim());
@@ -38,10 +38,12 @@ export async function request<T>(base: string, path: string, body?: unknown): Pr
 
 export function client(base: string) {
   return {
-    report: (text: string) => request<Incident>(base, '/api/reports', { text, reported_by: 'VOL-014' }),
+    volunteerLogin: (identifier: string) => request<Resource>(base, `/api/volunteers/${identifier}`),
+    report: (text: string, reportedBy = 'VOL-014') => request<Incident>(base, '/api/reports', { text, reported_by: reportedBy }),
     update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(base, `/api/incidents/${id}/updates`, { text, reported_by }),
     decide: (id: string, decision: Decision) => request<Incident>(base, `/api/incidents/${id}/decision`, decision),
     resolve: (id: string, note: string) => request<Incident>(base, `/api/incidents/${id}/resolve`, { note }),
+    alert: (id: string, message: string) => request<Incident>(base, `/api/incidents/${id}/alerts`, { message, alerted_by: 'Manager' }),
   };
 }
 
