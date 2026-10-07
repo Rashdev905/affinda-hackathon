@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { stopBackgroundAlerts } from './alerts';
 import Constants from 'expo-constants';
 import { request, validateServer } from './api';
 
@@ -30,6 +31,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     const next = validateServer(value, Constants.expoConfig?.extra?.allowHttp !== false);
     const health = await request<{ status: string; service: string }>(next, '/health');
     if (health.status !== 'ok' || health.service !== 'pulse') throw new Error('This address is not a healthy Pulse backend.');
+    if (next !== url) await stopBackgroundAlerts();
     await AsyncStorage.setItem(key, next);
     setUrl(next);
   }

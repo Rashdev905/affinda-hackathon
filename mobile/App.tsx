@@ -14,10 +14,13 @@ import { IncidentScreen } from './src/screens/IncidentScreen';
 import { VolunteerAlertsScreen } from './src/screens/VolunteerAlertsScreen';
 import { VolunteerLoginScreen } from './src/screens/VolunteerLoginScreen';
 import type { Resource } from './src/types';
+import { EmergencyAlert } from './src/EmergencyAlert';
+import { stopBackgroundAlerts, useDutyAlerts, useVolunteerAlerts } from './src/alerts';
 
 type Mode = 'Manager' | 'Volunteer';
 const modeKey = 'pulse.mode.v1';
 const resolvedClearedAtKey = 'pulse.manager.resolvedClearedAt.v1';
+const volunteerKey = 'pulse.volunteer.v1';
 const managerTabs: { label: string; icon: IconName }[] = [
   { label: 'Operations', icon: 'grid-outline' },
   { label: 'Team', icon: 'people-outline' },
@@ -40,6 +43,9 @@ function Workspace() {
   const [volunteerName, setVolunteerName] = useState('');
   const [incidentId, setIncidentId] = useState<string | null>(null);
   const [resolvedClearedAt, setResolvedClearedAt] = useState<string | null>(null);
+  const alertVolunteer = mode === 'Volunteer' ? volunteerId : null;
+  const inbox = useVolunteerAlerts(url, alertVolunteer);
+  const duty = useDutyAlerts(url, alertVolunteer);
   const tabs = mode === 'Manager' ? managerTabs : volunteerTabs;
   const connectionTab = tabs.length - 1;
   useEffect(() => {
@@ -66,7 +72,18 @@ function Workspace() {
     return () => subscription.remove();
   }, [incidentId, tab, configuring]);
   useEffect(() => { setIncidentId(null); setVolunteerId(null); setVolunteerName(''); }, [url]);
+  useEffect(() => {
+    let mounted = true;
+    if (ready && mode === 'Volunteer') void AsyncStorage.getItem(volunteerKey).then(value => {
+      const saved = value ? JSON.parse(value) : null;
+      if (mounted && saved?.base === url && /^VOL-\d{3}$/.test(saved.id)) {
+        setVolunteerId(saved.id); setVolunteerName(saved.name);
+      }
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [ready, mode, url]);
   async function chooseMode(next: Mode) {
+    if (next === 'Manager') await stopBackgroundAlerts();
     setMode(next);
     setIncidentId(null);
     setTab(0);
@@ -77,6 +94,11 @@ function Workspace() {
     await AsyncStorage.setItem(resolvedClearedAtKey, cutoff);
     setResolvedClearedAt(cutoff);
   }
+  async function returnToMenu() {
+    await stopBackgroundAlerts();
+    setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null);
+    await AsyncStorage.multiRemove([modeKey, volunteerKey]);
+  }
   if (!ready || !modeReady) return <View style={styles.loading}><ActivityIndicator color={palette.green} /><Text>Opening Pulse…</Text></View>;
   if (configuring) return <SafeAreaView style={styles.root}><ConnectionScreen onReturnToMenu={() => setConfiguring(false)}
     returnLabel={mode === 'Volunteer' ? 'Back to volunteer login' : 'Back to role selection'} /></SafeAreaView>;
@@ -84,12 +106,13 @@ function Workspace() {
   if (mode === 'Volunteer' && !volunteerId) return <VolunteerLoginScreen onLogin={(volunteer: Resource) => {
     setVolunteerId(volunteer.id);
     setVolunteerName(volunteer.name);
-  }} onBack={() => setMode(null)} onSettings={() => setConfiguring(true)} />;
+    void AsyncStorage.setItem(volunteerKey, JSON.stringify({ base: url, id: volunteer.id, name: volunteer.name })).catch(() => {});
+  }} onBack={() => void returnToMenu()} onSettings={() => setConfiguring(true)} />;
   const pages = mode === 'Manager'
-    ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} hiddenResolvedBefore={resolvedClearedAt} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />]
-    : [<ReportScreen key={`report-${url}-${volunteerId}`} active={tab === 0 && !incidentId} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
-      <VolunteerAlertsScreen key={`alerts-${url}`} volunteerId={volunteerId!} onOpen={setIncidentId} />,
-      <ConnectionScreen key="connection" onReturnToMenu={() => { setTab(0); setIncidentId(null); setVolunteerId(null); setVolunteerName(''); setMode(null); }} />];
+    ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} hiddenResolvedBefore={resolvedClearedAt} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => void returnToMenu()} />]
+    : [<ReportScreen key={`report-${url}-${volunteerId}`} active={tab === 0 && !incidentId && !inbox.current} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
+      <VolunteerAlertsScreen key={`alerts-${url}`} volunteerId={volunteerId!} onOpen={setIncidentId} inbox={inbox} duty={duty} />,
+      <ConnectionScreen key="connection" onReturnToMenu={() => void returnToMenu()} />];
   return <SafeAreaView style={styles.root}>
     <StatusBar style="dark" />
     <View style={styles.header}><View style={styles.brand}><Icon name="pulse" size={29} /><Text style={styles.wordmark}>pulse<Text style={{ color: '#8dac68' }}>.</Text></Text></View>
@@ -107,6 +130,7 @@ function Workspace() {
       style={[styles.tab, tab === index && !incidentId && { backgroundColor: '#eaf1df' }]}>
       <Icon name={item.icon} size={23} color={tab === index ? palette.green : palette.muted} /><Text style={styles.tabText}>{item.label}</Text>
     </Pressable>)}</View>
+    {mode === 'Volunteer' && <EmergencyAlert key={`${url}-${volunteerId}`} inbox={inbox} onOpen={setIncidentId} />}
   </SafeAreaView>;
 }
 

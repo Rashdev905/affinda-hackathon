@@ -35,6 +35,10 @@ def initialize() -> None:
     with connection(write=True) as db:
         db.execute("CREATE TABLE IF NOT EXISTS incidents (id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
         db.execute("CREATE TABLE IF NOT EXISTS resources (id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+        db.execute("""CREATE TABLE IF NOT EXISTS volunteer_alerts (
+            id TEXT PRIMARY KEY, incident_id TEXT NOT NULL,
+            volunteer_id TEXT NOT NULL, payload TEXT NOT NULL)""")
+        db.execute("CREATE INDEX IF NOT EXISTS alerts_by_volunteer ON volunteer_alerts(volunteer_id)")
         for resource in seed_resources():
             db.execute("INSERT OR IGNORE INTO resources VALUES (?, ?)", (resource.id, resource.model_dump_json()))
 
@@ -61,9 +65,6 @@ def save_incident(db: sqlite3.Connection, incident: Incident) -> None:
         "INSERT INTO incidents VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload",
         (incident.id, incident.model_dump_json()),
     )
-
-
 def delete_all_incidents(db: sqlite3.Connection) -> int:
     cursor = db.execute("DELETE FROM incidents")
     return cursor.rowcount
-

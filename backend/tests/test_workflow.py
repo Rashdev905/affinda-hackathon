@@ -63,7 +63,7 @@ def test_full_report_clarify_approve_update_resolve_and_persist(client):
     persisted = client.get(f"/api/incidents/{id_}").json()
     assert persisted == resolved.json()
     kinds = [event["kind"] for event in persisted["timeline"]]
-    assert kinds == ["reported", "suggestion", "update", "approved", "update", "resolved"]
+    assert kinds == ["reported", "suggestion", "emergency_alert", "update", "approved", "update", "resolved"]
     assert persisted["timeline"][0]["message"] == MEDICAL
     assert [event["timestamp"] for event in persisted["timeline"]] == sorted(event["timestamp"] for event in persisted["timeline"])
     # A fresh app startup must preserve the incident and not reassign seeded resources.

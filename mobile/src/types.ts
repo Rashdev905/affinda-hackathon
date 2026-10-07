@@ -65,3 +65,16 @@ export interface Decision {
   note?: string
 }
 
+export interface VolunteerAlert {
+  id: string
+  incident_id: string
+  volunteer_id: string
+  source: 'automatic' | 'manager'
+  urgency: Urgency
+  location: string
+  message: string
+  instructions: string[]
+  created_at: string
+  acknowledged_at: string | null
+  active: boolean
+}
