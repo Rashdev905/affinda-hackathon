@@ -32,13 +32,13 @@ def queue_alerts(db: sqlite3.Connection, incident: Incident, recipients: list[st
 
 
 def queue_emergency(db: sqlite3.Connection, incident: Incident) -> None:
-    if incident.urgency not in ("high", "critical"):
+    # Emergency notifications are sent only after a manager approves and assigns a response.
+    if incident.urgency not in ("high", "critical") or incident.status != "response_dispatched" or not incident.assigned_responders:
         return
-    # Replace only this selection with location/skill matching when tracking is ready.
-    recipients = [r.id for r in database.list_resources(db) if r.id.startswith("VOL-")]
+    recipients = incident.assigned_responders
     queue_alerts(db, incident, recipients, incident.summary, "automatic")
     event(incident, "emergency_alert", "Pulse · demo alerts",
-          f"Emergency alert queued for {len(recipients)} demo volunteers. Recipient proximity is a placeholder.")
+          f"Emergency alert queued for {len(recipients)} manager-approved responders.")
 
 
 def inbox(db: sqlite3.Connection, volunteer_id: str) -> list[VolunteerAlert]:

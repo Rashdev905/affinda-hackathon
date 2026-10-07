@@ -78,8 +78,6 @@ def update_incident(incident_id: str, body: UpdateInput) -> Incident:
             incident.last_decision = None
         if incident.status not in ["in_progress", "response_dispatched"]:
             incident.recommendation = recommend(incident, database.list_resources(db), plan)
-        if escalated:
-            queue_emergency(db, incident)
         database.save_incident(db, incident)
     return incident
 
@@ -166,6 +164,7 @@ def decide(incident_id: str, body: DecisionInput) -> Incident:
                   f"Response {'modified and ' if body.decision == 'modify' else ''}approved. Assigned: {', '.join(r.name for r in chosen)}. " + body.note)
             if warnings:
                 event(incident, "coverage", "Pulse · coordinator", " ".join(warnings))
+            queue_emergency(db, incident)
         database.save_incident(db, incident)
     return incident
 

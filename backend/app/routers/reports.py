@@ -5,7 +5,6 @@ from fastapi import APIRouter, HTTPException
 from .. import database
 from ..schemas import Incident, Recommendation, ReportInput
 from ..services.ai_analysis import AnalysisServiceError, analyze_report
-from ..services.alerts import queue_emergency
 from ..services.coordinator import recommend
 from ..services.incidents import event, now
 
@@ -32,6 +31,5 @@ def create_report(body: ReportInput) -> Incident:
         incident.recommendation = recommend(incident, database.list_resources(db), plan)
         event(incident, "reported", body.reported_by, body.text)
         event(incident, "suggestion", f"Pulse · {parser_mode} analysis", "Report structured. Suggested response awaits a manager decision.")
-        queue_emergency(db, incident)
         database.save_incident(db, incident)
     return incident

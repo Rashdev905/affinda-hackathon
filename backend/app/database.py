@@ -41,6 +41,11 @@ def initialize() -> None:
         db.execute("CREATE INDEX IF NOT EXISTS alerts_by_volunteer ON volunteer_alerts(volunteer_id)")
         for resource in seed_resources():
             db.execute("INSERT OR IGNORE INTO resources VALUES (?, ?)", (resource.id, resource.model_dump_json()))
+            if resource.id in {"VOL-015", "VOL-016"}:
+                row = db.execute("SELECT payload FROM resources WHERE id = ?", (resource.id,)).fetchone()
+                existing = Resource.model_validate_json(row["payload"])
+                existing.name, existing.role = resource.name, resource.role
+                db.execute("UPDATE resources SET payload = ? WHERE id = ?", (existing.model_dump_json(), resource.id))
 
 
 def list_resources(db: sqlite3.Connection) -> list[Resource]:
