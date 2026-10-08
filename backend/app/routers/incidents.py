@@ -3,8 +3,9 @@ from fastapi import APIRouter, Header, HTTPException
 from .. import database
 from ..models import REQUIRED_SKILLS
 from ..schemas import AlertDraft, AlertDrafts, AlertInput, DecisionInput, Incident, ResponderAssignment, ResponderNeed, ResponseModificationInput, ResponsePlan, ResolveInput, UpdateInput
-from ..services.ai_analysis import AnalysisServiceError, analyze_report, generate_alert_messages
+from ..services.ai_analysis import AnalysisServiceError, generate_alert_messages
 from ..services.alerts import queue_alerts
+from ..services.manager_notifications import queue_manager_notification
 from ..services.coordinator import coverage_conflicts, recommend
 from ..services.incidents import event, refresh, require_incident, require_open
 
@@ -41,44 +42,13 @@ def get_incident(incident_id: str) -> Incident:
 
 @router.post("/{incident_id}/updates", response_model=Incident)
 def update_incident(incident_id: str, body: UpdateInput) -> Incident:
-    with database.connection() as db:
-        original = require_incident(db, incident_id)
-        require_open(original)
-        resources = database.list_resources(db)
-    try:
-        parsed, plan, parser_mode = analyze_report(body.text, resources, original)
-    except AnalysisServiceError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
+    # Updates are messages for the manager, not requests for another AI decision.
     with database.connection(write=True) as db:
         incident = require_incident(db, incident_id)
         require_open(incident)
-        if incident.updated_at != original.updated_at:
-            raise HTTPException(status_code=409, detail="This incident changed while the update was analyzed. Refresh and submit the update again.")
-        prior_plan = incident.recommendation
-        plan_changed = (
-            plan.medical_assistance_needed != prior_plan.medical_assistance_needed
-            or [(need.required_skill, need.responsibility) for need in plan.responder_needs]
-            != [(need.required_skill, need.responsibility) for need in prior_plan.responder_needs]
-            or plan.actions != prior_plan.actions
-        )
-        escalated = parsed.priority_score > incident.priority_score or parsed.type != incident.type or plan_changed
-        for key, value in parsed.model_dump().items():
-            setattr(incident, key, value)
-        incident.parser_mode = parser_mode
         event(incident, "update", body.reported_by, body.text)
-        if escalated:
-            incident.status = "awaiting_approval"
-            incident.last_decision = None
-            event(incident, "escalation", f"Pulse · {parser_mode} analysis", "New information changes the suggested response. Manager review required; existing assignments are retained.")
-        elif incident.status == "response_dispatched":
-            incident.status = "in_progress"
-        elif incident.status not in ["in_progress"]:
-            incident.status = "awaiting_clarification" if incident.missing_information else "awaiting_approval"
-            incident.last_decision = None
-        if incident.status not in ["in_progress", "response_dispatched"]:
-            incident.recommendation = recommend(incident, database.list_resources(db), plan)
         database.save_incident(db, incident)
+        queue_manager_notification(db, incident, body.reported_by, body.text, "update")
     return incident
 
 

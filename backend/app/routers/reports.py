@@ -8,6 +8,7 @@ from ..services.ai_analysis import AnalysisServiceError, analyze_report
 from ..services.coordinator import recommend
 from ..services.incidents import event, now
 from ..services.report_location import apply_reporter_location
+from ..services.manager_notifications import queue_manager_notification
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -37,4 +38,5 @@ def create_report(body: ReportInput) -> Incident:
             event(incident, "location_inferred", "Pulse", location_note)
         event(incident, "suggestion", f"Pulse · {parser_mode} analysis", "Report structured. Suggested response awaits a manager decision.")
         database.save_incident(db, incident)
+        queue_manager_notification(db, incident, body.reported_by, body.text, "report")
     return incident

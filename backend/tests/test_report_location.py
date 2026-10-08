@@ -68,7 +68,7 @@ def test_changed_zone_is_read_from_database_not_seed_data(client):
     assert report(client, "Someone is dying")["location"] == "South Gate"
 
 
-def test_updates_keep_incident_location_unless_explicitly_changed(client):
+def test_update_location_correction_is_saved_for_manager_review(client):
     incident = report(client, "Someone is dying")
     endpoint = f"/api/incidents/{incident['id']}/updates"
     # A different volunteer sending an update must not relocate the incident.
@@ -77,4 +77,5 @@ def test_updates_keep_incident_location_unless_explicitly_changed(client):
     assert response.json()["location"] == "Lawn Stage"
     response = client.post(endpoint, json={"text": "Correction: this happened at North Gate", "reported_by": "VOL-003"})
     assert response.status_code == 200
-    assert response.json()["location"] == "North Gate"
+    assert response.json()["location"] == "Lawn Stage"
+    assert response.json()["timeline"][-1]["message"] == "Correction: this happened at North Gate"

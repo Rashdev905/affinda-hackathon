@@ -23,6 +23,7 @@ object PulseAlertState {
   @Volatile var running = false
   fun prefs(context: Context) = context.getSharedPreferences("pulse-alerts", Context.MODE_PRIVATE)
   fun channels(context: Context) {
+    PulseManagerUpdates.channel(context)
     if (Build.VERSION.SDK_INT >= 26) {
       val manager = context.getSystemService(NotificationManager::class.java)
       val alerts = NotificationChannel(CHANNEL, "Emergency alerts", NotificationManager.IMPORTANCE_HIGH)
@@ -47,6 +48,7 @@ object PulseAlertState {
     prefs(context).edit().putString("seen", JSONArray(ids).toString()).apply()
   }
   fun clearNotifications(context: Context) {
+    PulseManagerUpdates.clear(context)
     val manager = context.getSystemService(NotificationManager::class.java)
     for (id in seen(context)) manager.cancel("pulse:$id", ALERT_ID)
   }
@@ -120,6 +122,14 @@ class PulseAlertService : Service() {
     val volunteer = prefs.getString("volunteer", "") ?: ""
     if (!prefs.getBoolean("enabled", false) || base.isEmpty() || volunteer.isEmpty()) return
     try {
+      if (volunteer == PulseManagerUpdates.IDENTITY) {
+        PulseManagerUpdates.poll(this, base) {
+          !destroyed && prefs.getBoolean("enabled", false) &&
+            base == prefs.getString("base", "") && volunteer == prefs.getString("volunteer", "")
+        }
+        if (!destroyed && prefs.getString("volunteer", "") == volunteer) connection("Connected · manager updates")
+        return
+      }
       // One durable acknowledgement per cycle; a failed send never restarts its alarm.
       syncAcknowledgement(base, volunteer)
       request = URL("$base/api/volunteers/$volunteer/alerts").openConnection() as HttpURLConnection

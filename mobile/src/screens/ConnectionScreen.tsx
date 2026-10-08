@@ -3,9 +3,10 @@ import { Alert, ScrollView, Text } from 'react-native';
 import { client, errorMessage } from '../api';
 import { useConnection } from '../connection';
 import { Button, Card, Field, Heading, Notice, s } from '../ui';
+import type { DutyAlerts } from '../alerts';
 
-export function ConnectionScreen({ onReturnToMenu, returnLabel = 'Return to main menu', managerMode = false, onClearResolvedFromApp }: {
-  onReturnToMenu?: () => void; returnLabel?: string; managerMode?: boolean; onClearResolvedFromApp?: () => Promise<void>;
+export function ConnectionScreen({ onReturnToMenu, returnLabel = 'Return to main menu', managerMode = false, onClearResolvedFromApp, managerDuty }: {
+  onReturnToMenu?: () => void; returnLabel?: string; managerMode?: boolean; onClearResolvedFromApp?: () => Promise<void>; managerDuty?: DutyAlerts;
 }) {
   const { url, save } = useConnection();
   const [value, setValue] = useState(url);
@@ -45,6 +46,17 @@ export function ConnectionScreen({ onReturnToMenu, returnLabel = 'Return to main
   return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.screen}>
     <Heading kicker="PHONE ↔ PYTHON" title="Connection." subtitle="Connect the app to your festival server." />
     <Notice text={error} kind="error" /><Notice text={message} kind="success" />
+    {managerMode && managerDuty && <Card>
+      <Text style={s.h2}>Volunteer update notifications</Text>
+      <Text style={s.body}>Receive a brief vibration when a volunteer updates an incident. Tap the notification to open it.</Text>
+      {managerDuty.supported ? <>
+        <Text style={s.small}>{managerDuty.status?.enabled ? 'Monitoring is on.' : 'Monitoring is off.'} Keep the Python server reachable.</Text>
+        <Button title={managerDuty.status?.enabled ? 'Stop manager notifications' : 'Start manager notifications'} secondary
+          onPress={() => void (managerDuty.status?.enabled ? managerDuty.stop() : managerDuty.start())} />
+        <Button title="Notification settings" secondary onPress={() => void managerDuty.settings()} />
+        {!managerDuty.status?.batteryAllowed && <Button title="Allow background monitoring" secondary onPress={() => void managerDuty.settings(true)} />}
+      </> : <Text style={s.small}>Install the Android APK for notifications while locked. This preview shows updates inside the app.</Text>}
+    </Card>}
     {managerMode && <Card>
       <Heading kicker="MANAGER CONTROLS" title="Incident data." subtitle="Clear incidents from this app or permanently remove them from the system." />
       <Button title="Clear resolved incidents from this app" secondary icon="close-circle-outline" busy={dataBusy}

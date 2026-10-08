@@ -40,7 +40,7 @@ export function client(base: string) {
   return {
     volunteerLogin: (identifier: string) => request<Resource>(base, `/api/volunteers/${identifier}`),
     report: (text: string, reportedBy = 'VOL-014') => request<Incident>(base, '/api/reports', { text, reported_by: reportedBy }, { timeoutMs: 55000 }),
-    update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(base, `/api/incidents/${id}/updates`, { text, reported_by }, { timeoutMs: 55000 }),
+    update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(base, `/api/incidents/${id}/updates`, { text, reported_by }),
     decide: (id: string, decision: Decision) => request<Incident>(base, `/api/incidents/${id}/decision`, decision),
     modifySuggestion: (id: string, responder_ids: string[], actions: string[], note: string) =>
       request<Incident>(base, `/api/incidents/${id}/suggestion`, { responder_ids, actions, note, modified_by: 'Manager' }),

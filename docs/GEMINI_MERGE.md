@@ -1,5 +1,7 @@
 # Gemini merge with the manager map
 
+**Later change (APK 0.7.1):** incident updates now save the sender's text directly to the timeline without AI analysis or automatic changes to priority, location or the response plan. Only initial reports retain their analysis step. Both saved volunteer reports and updates notify managers; see [manager notifications](MANAGER_UPDATE_NOTIFICATIONS.md). Earlier update-analysis behavior described below is historical.
+
 Incoming commit: `2a305c7` (`AI use unrestricted`) from
 `origin/Joon_LLM_Manager_Response`. Local map, keyword priority and assigned-zone
 work was checkpointed as `aec939c` before merging. The incoming change replaces

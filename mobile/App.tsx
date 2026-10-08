@@ -16,6 +16,7 @@ import { VolunteerAlertsScreen } from './src/screens/VolunteerAlertsScreen';
 import { VolunteerLoginScreen } from './src/screens/VolunteerLoginScreen';
 import type { Resource } from './src/types';
 import { EmergencyAlert } from './src/EmergencyAlert';
+import { ManagerUpdates } from './src/ManagerUpdates';
 import { stopBackgroundAlerts, useDutyAlerts, useVolunteerAlerts } from './src/alerts';
 
 type Mode = 'Manager' | 'Volunteer';
@@ -47,7 +48,7 @@ function Workspace() {
   const [resolvedClearedAt, setResolvedClearedAt] = useState<string | null>(null);
   const alertVolunteer = mode === 'Volunteer' ? volunteerId : null;
   const inbox = useVolunteerAlerts(url, alertVolunteer);
-  const duty = useDutyAlerts(url, alertVolunteer);
+  const duty = useDutyAlerts(url, mode === 'Manager' ? 'MANAGER' : alertVolunteer);
   const tabs = mode === 'Manager' ? managerTabs : volunteerTabs;
   const connectionTab = tabs.length - 1;
   useEffect(() => {
@@ -112,7 +113,7 @@ function Workspace() {
   }} onBack={() => void returnToMenu()} onSettings={() => setConfiguring(true)} />;
   const pages = mode === 'Manager'
     ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} hiddenResolvedBefore={resolvedClearedAt} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />,
-      <MapScreen key={`map-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => void returnToMenu()} />]
+      <MapScreen key={`map-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode managerDuty={duty} onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => void returnToMenu()} />]
     : [<ReportScreen key={`report-${url}-${volunteerId}`} active={tab === 0 && !incidentId && !inbox.current} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
       <VolunteerAlertsScreen key={`alerts-${url}`} volunteerId={volunteerId!} onOpen={setIncidentId} inbox={inbox} duty={duty} />,
       <ConnectionScreen key="connection" onReturnToMenu={() => void returnToMenu()} />];
@@ -122,6 +123,7 @@ function Workspace() {
       <View><Text style={styles.event}>RIVERSIDE</Text><Text style={styles.status}>{!url ? 'Setup needed' : health.error ? 'Offline · retrying' : health.data ? 'Connected · Demo' : 'Connecting…'}</Text></View>
     </View>
     {!url && tab !== connectionTab && <Pressable accessibilityRole="button" onPress={() => setTab(connectionTab)} style={styles.setup}><Text style={{ color: palette.green }}>Connect to your Python server →</Text></Pressable>}
+    {mode === 'Manager' && <ManagerUpdates key={url} base={url} duty={duty} onOpen={setIncidentId} />}
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {pages.map((page, index) => <View key={index} style={{ flex: 1, display: !incidentId && tab === index ? 'flex' : 'none' }}
         accessibilityElementsHidden={!!incidentId || tab !== index} importantForAccessibility={!incidentId && tab === index ? 'auto' : 'no-hide-descendants'}>{page}</View>)}

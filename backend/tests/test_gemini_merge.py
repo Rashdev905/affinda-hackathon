@@ -121,16 +121,16 @@ def test_no_global_keyword_upgrade_for_negated_warnings(gemini):
     assert parsed.priority_score == 20
 
 
-def test_update_keeps_prior_priority_and_sends_existing_location(client, gemini):
+def test_update_saves_directly_without_another_gemini_call(client, gemini):
     response = client.post("/api/reports", json={"text": "Someone is dying", "reported_by": "VOL-001"})
     incident = response.json()
     gemini["output"] = analysis(location="Lawn Stage", priority_score=20, observations=[], missing_information=[], follow_up_question="")
     update = client.post(f"/api/incidents/{incident['id']}/updates", json={"text": "Breathing normally now", "reported_by": "VOL-003"})
     assert update.status_code == 200
     assert update.json()["priority_score"] >= incident["priority_score"]
-    payload = json.loads(gemini["calls"][-1][1]["json"]["contents"][0]["parts"][0]["text"])
-    assert payload["existing_incident"]["location"] == "Lawn Stage"
-    assert payload["reporter_zone"] is None
+    assert len(gemini["calls"]) == 1
+    assert update.json()["location"] == incident["location"]
+    assert update.json()["timeline"][-1]["message"] == "Breathing normally now"
 
 
 @pytest.mark.parametrize("payload", [
@@ -188,3 +188,44 @@ def test_malformed_draft_indices_are_rejected(client, gemini, messages):
     gemini["output"] = {"messages": messages}
     with pytest.raises(ai_analysis.AnalysisServiceError):
         ai_analysis.generate_alert_messages(incident, [assignment])
+
+
+def test_draft_budget_allows_complete_answer_after_model_reasoning(client, gemini, monkeypatch):
+    incident = Incident.model_validate(client.post("/api/reports", json={"text": "Someone is dying"}).json())
+    assignment = ResponderAssignment(resource_id="VOL-002", required_skill="first_aid", responsibility="Assess the person.")
+
+    def budget_limited_model(url, **kwargs):
+        budget = kwargs["json"]["generationConfig"]["maxOutputTokens"]
+        if budget < 4096:
+            payload = {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": []}}]}
+        else:
+            payload = envelope({"messages": [{"index": 0, "message": "Go to Lawn Stage and assess the person."}]})
+        return httpx.Response(200, json=payload, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(ai_analysis.httpx, "post", budget_limited_model)
+    messages, mode = ai_analysis.generate_alert_messages(incident, [assignment])
+    assert mode == "gemini"
+    assert messages == ["Go to Lawn Stage and assess the person."]
+    assert client.get("/api/volunteers/VOL-002/alerts").json() == []
+
+
+@pytest.mark.parametrize("payload,expected", [
+    ({"candidates": [{"finishReason": "MAX_TOKENS"}]}, "MAX_TOKENS"),
+    ({"promptFeedback": {"blockReason": "SAFETY"}}, "blocked"),
+    ({"candidates": [{"finishReason": "SAFETY"}]}, "blocked"),
+    ({"candidates": []}, "no response candidates"),
+    ({"candidates": [{"finishReason": "STOP", "content": {"parts": []}}]}, "without any answer text"),
+    ({"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": '{"messages":'}]}}]}, "malformed JSON"),
+])
+def test_draft_failures_explain_cause_without_sending(client, gemini, payload, expected):
+    incident = client.post("/api/reports", json={"text": "Someone is dying"}).json()
+    base = f"/api/incidents/{incident['id']}"
+    approved = client.post(base + "/decision", json={"decision": "approve"})
+    assert approved.status_code == 200
+    gemini["envelope"] = payload
+    response = client.post(base + "/alert-drafts", json={})
+    assert response.status_code == 503
+    assert expected in response.json()["detail"]
+    assert "fake-test-key" not in response.text
+    for volunteer_id in approved.json()["assigned_responders"]:
+        assert client.get(f"/api/volunteers/{volunteer_id}/alerts").json() == []

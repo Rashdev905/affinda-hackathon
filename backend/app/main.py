@@ -6,8 +6,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from .config import load_backend_environment
+
+load_backend_environment()
+
 from . import database
-from .routers import alerts, incidents, reports, resources, transcriptions
+from .routers import alerts, incidents, manager_updates, reports, resources, transcriptions
 
 ANDROID_APK = Path(__file__).resolve().parents[2] / "artifacts" / "Pulse-Android.apk"
 
@@ -30,6 +34,7 @@ app.include_router(incidents.router)
 app.include_router(resources.router)
 app.include_router(transcriptions.router)
 app.include_router(alerts.router)
+app.include_router(manager_updates.router)
 
 
 @app.get("/health")

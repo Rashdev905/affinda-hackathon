@@ -23,10 +23,12 @@ class PulseAlertsModule(private val context: ReactApplicationContext) : ReactCon
 
   @ReactMethod fun start(base: String, volunteerId: String, promise: Promise) {
     try {
-      require(URL(base).protocol in listOf("http", "https") && Regex("VOL-[0-9]{3}").matches(volunteerId))
+      require(URL(base).protocol in listOf("http", "https") &&
+        (Regex("VOL-[0-9]{3}").matches(volunteerId) || volunteerId == PulseManagerUpdates.IDENTITY))
       PulseAlertState.channels(context)
       PulseAlertState.foreground = true
-      PulseAlarm.configure(context, base, volunteerId)
+      if (volunteerId == PulseManagerUpdates.IDENTITY) PulseAlarm.clear(context)
+      else PulseAlarm.configure(context, base, volunteerId)
       check(NotificationManagerCompat.from(context).areNotificationsEnabled()) { "Enable Pulse notifications in Android settings first." }
       val prefs = PulseAlertState.prefs(context)
       if (prefs.getString("base", "") != base || prefs.getString("volunteer", "") != volunteerId) {
@@ -52,7 +54,9 @@ class PulseAlertsModule(private val context: ReactApplicationContext) : ReactCon
 
   @ReactMethod fun status(promise: Promise) {
     PulseAlertState.channels(context)
-    val channel = if (Build.VERSION.SDK_INT >= 26) context.getSystemService(NotificationManager::class.java).getNotificationChannel(PulseAlertState.CHANNEL) else null
+    val channelId = if (PulseAlertState.prefs(context).getString("volunteer", "") == PulseManagerUpdates.IDENTITY)
+      PulseManagerUpdates.CHANNEL else PulseAlertState.CHANNEL
+    val channel = if (Build.VERSION.SDK_INT >= 26) context.getSystemService(NotificationManager::class.java).getNotificationChannel(channelId) else null
     val power = context.getSystemService(PowerManager::class.java)
     val prefs = PulseAlertState.prefs(context)
     promise.resolve(Arguments.createMap().apply {
@@ -90,8 +94,10 @@ class PulseAlertsModule(private val context: ReactApplicationContext) : ReactCon
 
   @ReactMethod fun notificationSettings(promise: Promise) {
     try {
+      val channelId = if (PulseAlertState.prefs(context).getString("volunteer", "") == PulseManagerUpdates.IDENTITY)
+        PulseManagerUpdates.CHANNEL else PulseAlertState.CHANNEL
       val intent = if (Build.VERSION.SDK_INT >= 26) Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
-        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).putExtra(Settings.EXTRA_CHANNEL_ID, PulseAlertState.CHANNEL)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName).putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
       else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
       context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
       promise.resolve(null)

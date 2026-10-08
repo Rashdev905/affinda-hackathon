@@ -39,6 +39,12 @@ def initialize() -> None:
             id TEXT PRIMARY KEY, incident_id TEXT NOT NULL,
             volunteer_id TEXT NOT NULL, payload TEXT NOT NULL)""")
         db.execute("CREATE INDEX IF NOT EXISTS alerts_by_volunteer ON volunteer_alerts(volunteer_id)")
+        db.execute("""CREATE TABLE IF NOT EXISTS manager_updates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, incident_id TEXT NOT NULL,
+            volunteer_id TEXT NOT NULL, volunteer_name TEXT NOT NULL,
+            message TEXT NOT NULL, location TEXT NOT NULL, created_at TEXT NOT NULL)""")
+        if "kind" not in {row["name"] for row in db.execute("PRAGMA table_info(manager_updates)")}:
+            db.execute("ALTER TABLE manager_updates ADD COLUMN kind TEXT NOT NULL DEFAULT 'update'")
         for resource in seed_resources():
             db.execute("INSERT OR IGNORE INTO resources VALUES (?, ?)", (resource.id, resource.model_dump_json()))
             if resource.id in {"VOL-015", "VOL-016"}:
@@ -71,5 +77,6 @@ def save_incident(db: sqlite3.Connection, incident: Incident) -> None:
         (incident.id, incident.model_dump_json()),
     )
 def delete_all_incidents(db: sqlite3.Connection) -> int:
+    db.execute("DELETE FROM manager_updates")
     cursor = db.execute("DELETE FROM incidents")
     return cursor.rowcount

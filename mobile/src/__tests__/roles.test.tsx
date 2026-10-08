@@ -43,6 +43,7 @@ beforeEach(async () => {
     if (path.endsWith('/alerts') && options?.method === 'POST') incident = { ...incident, timeline: [{ id: 'alert-1', kind: 'volunteer_alert', actor: 'Manager', message: body.message, timestamp: incident.updated_at }] };
     if (path.endsWith('/acknowledge')) volunteerAlerts = volunteerAlerts.map(alert => ({ ...alert, acknowledged_at: '2026-10-07T03:00:00Z' }));
     const data = path === '/health' ? { status: 'ok', service: 'pulse' }
+      : path.startsWith('/api/manager/updates') ? { cursor: 0, updates: [] }
       : path === '/api/volunteers/0002' ? volunteer
       : path === '/api/volunteers/VOL-002/alerts' ? volunteerAlerts
       : path.endsWith('/acknowledge') ? volunteerAlerts[0]

@@ -1,6 +1,6 @@
 import { client, request, validateServer } from '../api';
 
-test.each(['report', 'update'] as const)('%s waits for a slow Gemini response without sending twice', async method => {
+test('report waits for a slow Gemini response without sending twice', async () => {
   jest.useFakeTimers();
   try {
     let finish: (response: any) => void = () => {};
@@ -10,7 +10,7 @@ test.each(['report', 'update'] as const)('%s waits for a slow Gemini response wi
       return new Promise(resolve => { finish = resolve; });
     });
     const api = client('http://pc:8000');
-    const pending = method === 'report' ? api.report('Someone is dying', 'VOL-001') : api.update('INC-1', 'Breathing normally', 'VOL-001');
+    const pending = api.report('Someone is dying', 'VOL-001');
     jest.advanceTimersByTime(20000);
     expect(signal?.aborted).toBe(false);
     finish({ ok: true, json: async () => ({ id: 'INC-1', parser_mode: 'gemini' }) });

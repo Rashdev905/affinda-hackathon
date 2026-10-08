@@ -37,7 +37,7 @@ module.exports = function withPulseAlerts(config) {
     const root = path.join(config.modRequest.platformProjectRoot, 'app/src/main');
     const directory = path.join(root, 'java/com/riverside/pulse');
     await fs.mkdir(directory, { recursive: true });
-    for (const file of ['PulseAlertService.kt', 'PulseAlertsModule.kt', 'PulseAlarm.kt', 'PulseAlarmActivity.kt']) {
+    for (const file of ['PulseAlertService.kt', 'PulseAlertsModule.kt', 'PulseAlarm.kt', 'PulseAlarmActivity.kt', 'PulseManagerUpdates.kt']) {
       await fs.copyFile(path.join(__dirname, 'android', file), path.join(directory, file));
     }
     await fs.mkdir(path.join(root, 'res/drawable'), { recursive: true });

@@ -121,7 +121,8 @@ def test_danger_stays_high_through_clarification_and_requires_manager_alert(clie
     assert "breathing_status" in uncertain["missing_information"]
     clearer = update(client, incident, "Yes, they are breathing normally now")
     assert clearer["priority_score"] >= incident["priority_score"]
-    assert "breathing_status" not in clearer["missing_information"]
+    assert clearer["missing_information"] == incident["missing_information"]
+    assert clearer["timeline"][-1]["message"] == "Yes, they are breathing normally now"
     assert clearer["reported_by"] == "VOL-002"
     base = f"/api/incidents/{incident['id']}"
     approved = client.post(base + "/decision", json={"decision": "approve"})
@@ -136,23 +137,22 @@ def test_danger_stays_high_through_clarification_and_requires_manager_alert(clie
             assert len(inbox) == (1 if resource["id"] in assigned else 0)
 
 
-def test_no_answer_to_breathing_question_escalates(client):
+def test_short_answer_is_saved_verbatim_for_manager(client):
     incident = report(client, "Someone is dying at Lawn Stage")
     escalated = update(client, incident, "No")
-    assert escalated["urgency"] == "critical"
-    assert escalated["priority_score"] == 100
+    assert escalated["priority_score"] == incident["priority_score"]
+    assert escalated["timeline"][-1]["message"] == "No"
 
 
-def test_a_minor_report_can_escalate_and_cannot_silently_downgrade(client):
+def test_updates_preserve_classification_and_expose_changed_facts_to_manager(client):
     incident = report(client, "Small paper cut at Lawn Stage, bleeding stopped, otherwise well")
     assert band(incident["priority_score"]) == "low"
     incident = update(client, incident, "Now they are unconscious")
-    assert incident["urgency"] == "critical"
-    assert "breathing_status" in incident["missing_information"]
-    assert incident["follow_up_question"] == "Is the person breathing normally?"
+    assert band(incident["priority_score"]) == "low"
+    assert incident["timeline"][-1]["message"] == "Now they are unconscious"
     incident = update(client, incident, "Awake again, please mark it low")
-    assert incident["urgency"] == "critical"
-    assert band(incident["priority_score"]) == "high"
+    assert band(incident["priority_score"]) == "low"
+    assert incident["timeline"][-1]["message"] == "Awake again, please mark it low"
     assert Incident.model_validate(incident)
 
 
@@ -162,5 +162,6 @@ def test_unclear_illness_asks_for_details(client):
     assert "symptoms" in incident["missing_information"]
     assert "symptoms" in incident["follow_up_question"]
     clarified = update(client, incident, "Moderate stomach cramps, alert, breathing normally")
-    assert "symptoms" not in clarified["missing_information"]
+    assert clarified["missing_information"] == incident["missing_information"]
+    assert clarified["timeline"][-1]["message"] == "Moderate stomach cramps, alert, breathing normally"
     assert band(clarified["priority_score"]) == "medium"

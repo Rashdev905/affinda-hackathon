@@ -100,7 +100,7 @@ A coordinated response.</Text><Text style={[s.body, { color: '#cddfc0' }]}>You s
           <VoiceRecorder key={shown.id} base={url} active={active} disabled={busy} onBusyChange={setVoiceBusy}
             onTranscript={transcript => setUpdate(previous => previous ? `${previous}\n${transcript}` : transcript)} />
           <Text style={s.h3}>Anything new or changed since the initial report?</Text>
-          <Text style={s.small}>Answer any question below, or share new information and corrections. Mention a different zone if the incident location changes.</Text>
+          <Text style={s.small}>Your update is sent directly to the manager without AI processing. Share new information, answers or corrections, including any change of location.</Text>
           <Field label={shown.follow_up_question ?? 'New information or correction'} multiline value={update} onChangeText={setUpdate}
             maxLength={5000} placeholder="Share only what has changed…" />
           <Button title="Send update" icon="arrow-forward" busy={busy} disabled={voiceBusy || !update.trim() || update.length > 5000} onPress={() => void submit(true)} />

@@ -145,14 +145,28 @@ def _call_gemini_json(system: str, user_data: dict, schema: dict, max_output_tok
                      404: "Check PULSE_GEMINI_MODEL.", 429: "Quota or rate limit reached; retry later."}
             hint = hints.get(exc.response.status_code, "The provider is unavailable; retry later.")
             raise AnalysisServiceError(f"Gemini API returned HTTP {exc.response.status_code}. {hint}") from exc
-        candidate = response.json()["candidates"][0]
-        if candidate.get("finishReason", "STOP") != "STOP":
-            raise ValueError("Gemini did not finish a complete response.")
+        payload = response.json()
+        if payload.get("promptFeedback", {}).get("blockReason"):
+            raise AnalysisServiceError("Gemini blocked this request. Review the incident wording before retrying; no draft was sent.")
+        candidates = payload.get("candidates")
+        if not candidates:
+            raise AnalysisServiceError("Gemini returned no response candidates. Retry generating the drafts.")
+        candidate = candidates[0]
+        finish_reason = candidate.get("finishReason", "STOP")
+        if finish_reason == "MAX_TOKENS":
+            raise AnalysisServiceError("Gemini reached its output token limit before completing the response (MAX_TOKENS). No partial draft was used; retry generating.")
+        if finish_reason in {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY"}:
+            raise AnalysisServiceError("Gemini blocked the generated response. Review the incident wording before retrying; no draft was sent.")
+        if finish_reason != "STOP":
+            raise AnalysisServiceError("Gemini stopped before completing the response. Retry generating; no partial draft was used.")
         parts = candidate["content"]["parts"]
         output_text = "".join(part["text"] for part in parts if not part.get("thought") and isinstance(part.get("text"), str))
         if not output_text:
-            raise ValueError("Gemini returned no text content.")
-        output = json.loads(output_text)
+            raise AnalysisServiceError("Gemini completed without any answer text. Retry generating the response.")
+        try:
+            output = json.loads(output_text)
+        except ValueError as exc:
+            raise AnalysisServiceError("Gemini returned malformed JSON. Retry generating; no partial draft was used.") from exc
         if not isinstance(output, dict):
             raise ValueError("Gemini returned a non-object JSON value.")
         return output
@@ -164,7 +178,7 @@ def _call_gemini_json(system: str, user_data: dict, schema: dict, max_output_tok
         raise AnalysisServiceError("Could not connect to the Gemini API. Check your internet connection and retry.") from exc
     except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
         raise AnalysisServiceError(
-            "Gemini returned an empty or invalid response. Check PULSE_GEMINI_MODEL and retry."
+            "Gemini returned an unexpected response format. Retry generating the response."
         ) from exc
 
 
@@ -212,7 +226,8 @@ def _call_gemini_analysis(report_text: str, resources: list[Resource], existing:
         "approve any assignment. Output only the requested structured data."
     )
     try:
-        output = _call_gemini_json(system, user_data, ANALYSIS_SCHEMA, 1400)
+        # Allow room for reasoning as well as the complete structured answer.
+        output = _call_gemini_json(system, user_data, ANALYSIS_SCHEMA, 8192)
         analysis = LLMAnalysis.model_validate(output)
     except AnalysisServiceError:
         raise
@@ -278,7 +293,7 @@ def generate_alert_messages(incident: Incident, assignments: list[ResponderAssig
             "incident": incident.summary,
             "location": incident.location,
             "assignments": tasks,
-        }, alert_schema, max(300, min(1200, len(assignments) * 100)))
+        }, alert_schema, max(8192, min(16384, 2048 + len(assignments) * 256)))
         messages = output["messages"]
         if (not isinstance(messages, list) or len(messages) != len(assignments)
                 or any(type(item.get("index")) is not int for item in messages)):

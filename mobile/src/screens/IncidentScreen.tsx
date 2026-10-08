@@ -124,6 +124,12 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
       <Heading kicker={`${incident.id} · ${typeLabels[incident.type]}`} title={incident.summary} subtitle={incident.location} />
       <IncidentBadges status={incident.status} urgency={incident.urgency} priorityScore={incident.priority_score} />
       <Notice text={error || loadError || resources.error} kind="error" /><Notice text={message} kind="success" />
+      {canManage && incident.timeline.filter(entry => entry.kind === 'update').slice(-1).map(entry => <Card key={entry.id}>
+        <Text style={s.h2}>Latest update</Text>
+        <Text style={s.small}>{resources.data?.find(resource => resource.id === entry.actor)?.name ?? entry.actor} · {timestamp(entry.timestamp)}</Text>
+        <Text style={s.body}>{entry.message}</Text>
+        <Text style={s.small}>Saved directly from the sender. Review this update alongside the existing priority and response plan.</Text>
+      </Card>)}
       {!!incident.missing_information.length && <Notice text={`Information to confirm: ${incident.follow_up_question ?? incident.missing_information.join(', ')}`} />}
       <Card>
         <Text accessibilityRole="header" style={s.h2}>{resolved ? 'Recorded response' : canDecide ? 'Suggested response' : 'Approved response'}</Text>
