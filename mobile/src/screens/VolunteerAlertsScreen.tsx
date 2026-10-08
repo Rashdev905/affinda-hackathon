@@ -15,7 +15,7 @@ export function VolunteerAlertsScreen({ volunteerId, onOpen, inbox, duty }: {
   const assigned = incidents.data?.filter(item => item.status !== 'resolved' && item.assigned_responders.includes(volunteerId)) ?? [];
   return <ScrollView contentContainerStyle={s.screen}
     refreshControl={<RefreshControl refreshing={false} onRefresh={() => { void incidents.refresh(); void resources.refresh(); void inbox.refresh(); }} tintColor={palette.green} />}>
-    <Heading kicker="VOLUNTEER MODE" title="My alerts." subtitle="Emergency instructions and assignments for your shift." />
+    <Heading kicker="VOLUNTEER MODE" title="My alerts." />
     <Notice text={inbox.error || incidents.error || resources.error || duty.error} kind="error" />
     <Card>
       <Text style={s.label}>Signed in as {volunteer?.name ?? volunteerId}</Text>

@@ -48,7 +48,7 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
 
   return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.screen}
     refreshControl={<RefreshControl refreshing={false} onRefresh={() => void reports.refresh()} tintColor={palette.green} />}>
-    <Heading kicker="ON THE GROUND. IN THE LOOP." title="Report incident." subtitle="Tell us what’s happening. We’ll help make it clear." />
+    <Heading kicker="VOLUNTEER MODE" title="Report incident." />
     <Badge text={`${volunteerCode} · ${volunteerName}`} />
     <View style={s.row}><Icon name="location-outline" /><Text style={s.small}>{reportingZone
       ? `Reporting from ${reportingZone} · assigned demo zone`
@@ -89,8 +89,7 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
       <Card dark><Icon name="pulse-outline" color={palette.lime} size={32} /><Text style={[s.h2, { color: '#fff' }]}>A clear report.
 A coordinated response.</Text><Text style={[s.body, { color: '#cddfc0' }]}>You share what you see. Pulse suggests a response. Your safety lead makes the call.</Text></Card>
     </> : <>
-      <Card>
-        <Text selectable style={s.kicker}>{shown.id}</Text>
+      <Card compact>
         <IncidentBadges status={shown.status} urgency={shown.urgency} />
         <Text accessibilityRole="header" style={s.h2}>{shown.summary}</Text>
         <Text style={s.body}>{shown.location}</Text>
@@ -101,7 +100,7 @@ A coordinated response.</Text><Text style={[s.body, { color: '#cddfc0' }]}>You s
             onTranscript={transcript => setUpdate(previous => previous ? `${previous}\n${transcript}` : transcript)} />
           <Text style={s.h3}>Anything new or changed since the initial report?</Text>
           <Text style={s.small}>Your update is sent directly to the manager without AI processing. Share new information, answers or corrections, including any change of location.</Text>
-          <Field label={shown.follow_up_question ?? 'New information or correction'} multiline value={update} onChangeText={setUpdate}
+          <Field label="New information or correction" multiline value={update} onChangeText={setUpdate}
             maxLength={5000} placeholder="Share only what has changed…" />
           <Button title="Send update" icon="arrow-forward" busy={busy} disabled={voiceBusy || !update.trim() || update.length > 5000} onPress={() => void submit(true)} />
         </> : <Notice text="This incident has been resolved by the safety lead." kind="success" />}

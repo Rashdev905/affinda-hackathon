@@ -13,9 +13,11 @@ function DecisionSheet({ action, incident, resources, busy, error, onClose, onSu
   onClose: () => void; onSubmit: (note: string, ids: string[], actions: string[]) => void;
 }) {
   const [note, setNote] = useState('');
+  const [responderSearch, setResponderSearch] = useState('');
   const [ids, setIds] = useState(incident.recommendation.recommended_responders);
   const [actions, setActions] = useState(incident.recommendation.actions.join('\n'));
   const eligible = resources.filter(item => item.available || item.current_assignment === incident.id);
+  const matchingResponders = eligible.filter(item => `${item.name} ${item.id}`.toLowerCase().includes(responderSearch.trim().toLowerCase()));
   const zones = [...new Set(resources.filter(item => ids.includes(item.id)).map(item => item.zone))];
   const gaps = zones.filter(zone => !resources.some(item => item.zone === zone && item.available && !ids.includes(item.id)));
   function toggle(id: string) {
@@ -31,20 +33,21 @@ function DecisionSheet({ action, incident, resources, busy, error, onClose, onSu
           <Notice text={error} kind="error" />
           {action === 'modify' && <Card>
             <Text style={s.h3}>Select responders</Text>
-            {eligible.map(item => <Pressable key={item.id} accessibilityRole="checkbox" accessibilityLabel={item.name}
+            <Field label="Search volunteers by name or ID" value={responderSearch} onChangeText={setResponderSearch} placeholder="Name or volunteer ID" />
+            {matchingResponders.length ? matchingResponders.map(item => <Pressable key={item.id} accessibilityRole="checkbox" accessibilityLabel={`${item.name}, ${item.id}`}
               accessibilityState={{ checked: ids.includes(item.id) }} onPress={() => toggle(item.id)}
               style={{ flexDirection: 'row', gap: 12, paddingVertical: 12, alignItems: 'center' }}>
               <Icon name={ids.includes(item.id) ? 'checkbox' : 'square-outline'} />
-              <View style={{ flex: 1 }}><Text style={s.label}>{item.name}</Text><Text style={s.small}>{item.zone} · {item.skills.map(skill => skill.replaceAll('_', ' ')).join(', ')}</Text></View>
-            </Pressable>)}
+              <View style={{ flex: 1 }}><Text style={s.label}>{item.name}</Text><Text style={s.small}>{item.id} · {item.zone} · {item.skills.map(skill => skill.replaceAll('_', ' ')).join(', ')}</Text></View>
+            </Pressable>) : <Text style={s.small}>No available volunteers match that search.</Text>}
             {gaps.map(zone => <Notice key={zone} text={`Coverage check: no available resources will remain at ${zone}.`} />)}
             <Field label="Response actions (one per line)" multiline value={actions} onChangeText={setActions} maxLength={5000} />
           </Card>}
-          <Card><Field label={action === 'resolve' ? 'Resolution note' : 'Reason for this decision'} multiline value={note} onChangeText={setNote} maxLength={2000} placeholder="Add context for the team…" />
+          <Card>{action !== 'modify' && <Field label={action === 'resolve' ? 'Resolution note' : 'Reason for this decision'} multiline value={note} onChangeText={setNote} maxLength={2000} placeholder="Add context for the team…" />}
             {action === 'modify' && <Text style={s.small}>Saving updates the suggested response only. Review it on the incident screen, then approve it separately when ready.</Text>}
             <Button title={action === 'modify' ? 'Save modified response' : action === 'reject' ? 'Confirm rejection' : 'Confirm resolution'}
-              busy={busy} disabled={!note.trim() || (action === 'modify' && (!ids.length || !actions.trim()))}
-              onPress={() => onSubmit(note, ids, actions.split('\n').map(item => item.trim()).filter(Boolean))} />
+              busy={busy} disabled={(action !== 'modify' && !note.trim()) || (action === 'modify' && (!ids.length || !actions.trim()))}
+              onPress={() => onSubmit(action === 'modify' ? '' : note, ids, actions.split('\n').map(item => item.trim()).filter(Boolean))} />
             <Button title="Cancel" secondary disabled={busy} onPress={onClose} />
           </Card>
         </ScrollView>

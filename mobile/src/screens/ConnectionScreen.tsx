@@ -44,7 +44,7 @@ export function ConnectionScreen({ onReturnToMenu, returnLabel = 'Return to main
     ]);
   }
   return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.screen}>
-    <Heading kicker="PHONE ↔ PYTHON" title="Connection." subtitle="Connect the app to your festival server." />
+    <Heading kicker="PHONE ↔ PYTHON" title="Connection." />
     <Notice text={error} kind="error" /><Notice text={message} kind="success" />
     {managerMode && managerDuty && <Card>
       <Text style={s.h2}>Volunteer update notifications</Text>
@@ -58,7 +58,7 @@ export function ConnectionScreen({ onReturnToMenu, returnLabel = 'Return to main
       </> : <Text style={s.small}>Install the Android APK for notifications while locked. This preview shows updates inside the app.</Text>}
     </Card>}
     {managerMode && <Card>
-      <Heading kicker="MANAGER CONTROLS" title="Incident data." subtitle="Clear incidents from this app or permanently remove them from the system." />
+      <Heading kicker="MANAGER CONTROLS" title="Incident data." />
       <Button title="Clear resolved incidents from this app" secondary icon="close-circle-outline" busy={dataBusy}
         onPress={() => void clearResolvedFromApp()} />
       <Text style={s.small}>This hides resolved incidents on this phone. They remain in the database and can still be retrieved by the system.</Text>

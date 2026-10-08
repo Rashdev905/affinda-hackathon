@@ -30,4 +30,7 @@ Set-PulseNodePath
 Set-Location -LiteralPath (Join-Path $PulseRoot 'mobile')
 & npm.cmd ci --cache (Join-Path $PulseRoot '.tools\npm-cache')
 if ($LASTEXITCODE -ne 0) { throw 'Mobile dependency installation failed.' }
-Write-Output 'Pulse is ready. In separate terminals, run scripts/start-backend.ps1 -Lan and scripts/start-mobile.ps1 from the repository root.'
+Set-Location -LiteralPath (Join-Path $PulseRoot 'frontend')
+& npm.cmd ci --cache (Join-Path $PulseRoot '.tools\npm-cache')
+if ($LASTEXITCODE -ne 0) { throw 'Website dependency installation failed.' }
+Write-Output 'Pulse is ready. For the manager website, run scripts/start-backend.ps1 and scripts/start-frontend.ps1 in separate terminals.'

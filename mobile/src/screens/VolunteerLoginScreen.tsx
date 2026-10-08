@@ -28,7 +28,7 @@ export function VolunteerLoginScreen({ onLogin, onBack, onSettings }: {
 
   return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.screen}>
     <Icon name="people-outline" size={34} />
-    <Heading kicker="VOLUNTEER MODE" title="Volunteer login." subtitle="Enter the four-digit identifier assigned to you." />
+    <Heading kicker="VOLUNTEER MODE" title="Volunteer login." />
     <Notice text={!url ? 'Connect to the Pulse server in Settings before logging in.' : error} kind="error" />
     <Card>
       <Field label="4-digit volunteer ID" value={identifier} onChangeText={value => setIdentifier(value.replace(/\D/g, '').slice(0, 4))}

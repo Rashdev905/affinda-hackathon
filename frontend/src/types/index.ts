@@ -21,6 +21,9 @@ export interface Recommendation {
   actions: string[]
   reasoning: string[]
   conflicts: string[]
+  responders_needed?: number
+  medical_assistance_needed?: boolean
+  manager_edited?: boolean
   requires_human_approval: true
 }
 

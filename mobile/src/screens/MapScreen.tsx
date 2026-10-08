@@ -33,7 +33,7 @@ export function MapScreen({ onOpen }: { onOpen: (id: string) => void }) {
 
   return <ScrollView contentContainerStyle={s.screen}
     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={palette.green} />}>
-    <Heading kicker="RIVERSIDE · FESTIVAL GROUNDS" title="Festival map." subtitle="Your team, around the grounds." />
+    <Heading kicker="RIVERSIDE · FESTIVAL GROUNDS" title="Festival map." />
     <View style={s.row}><Badge text="Mock positions" /><Text style={s.small}>Illustrative layout · no GPS</Text></View>
     <Notice text={roster.error || incidents.error} kind="error" />
     {!!(roster.error || incidents.error) && <Text style={s.small}>Showing the last received information. Pull down to retry.</Text>}

@@ -50,8 +50,8 @@ export default function Volunteer() {
         <div className="example-section"><span className="small-label">TRY A DEMO REPORT</span><div className="example-buttons">{examples.map(example => <button key={example.label} type="button" className="chip" onClick={() => setText(example.text)}>{example.label}<Icon name="plus" size={14} /></button>)}</div></div>
         <button className="button primary full-width" disabled={busy || text.trim().length < 3}>{busy ? 'Sending report…' : 'Submit Incident'}<Icon name="arrow" /></button>
         <p className="form-footnote"><Icon name="shield" size={15} />Every response is reviewed by a person.</p>
-      </form></section> : <section className="panel report-panel">
-        <div className="section-kicker"><span className="step-number"><Icon name="check" size={15} /></span> REPORT RECEIVED <span className="mono push-right">{shown.id}</span></div>
+      </form></section> : <section className="panel report-panel received-report">
+        <div className="section-kicker"><span className="step-number"><Icon name="check" size={15} /></span> REPORT RECEIVED</div>
         <div className="badge-row"><UrgencyBadge urgency={shown.urgency} priorityScore={shown.priority_score} /><StatusBadge status={shown.status} /></div>
         <h2 className="report-summary">{shown.summary}</h2><p className="location-line"><Icon name="pin" size={17} />{shown.location}</p>
         <ul className="observation-list">{shown.observations.map((observation, index) => <li key={index}>{observation}</li>)}</ul>

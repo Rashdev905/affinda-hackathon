@@ -22,8 +22,8 @@ export function Button({ title, onPress, secondary = false, disabled = false, bu
     <Text style={[s.buttonText, secondary && { color: palette.green }]}>{title}</Text>
   </Pressable>;
 }
-export function Card({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
-  return <View style={[s.card, dark && { backgroundColor: palette.green, borderColor: palette.green }]}>{children}</View>;
+export function Card({ children, dark = false, compact = false }: { children: ReactNode; dark?: boolean; compact?: boolean }) {
+  return <View style={[s.card, compact && { padding: 16, gap: 14 }, dark && { backgroundColor: palette.green, borderColor: palette.green }]}>{children}</View>;
 }
 export function Heading({ kicker, title, subtitle }: { kicker?: string; title: string; subtitle?: string }) {
   return <View style={s.heading}>{kicker && <Text style={s.kicker}>{kicker}</Text>}<Text accessibilityRole="header" style={s.title}>{title}</Text>{subtitle && <Text style={s.body}>{subtitle}</Text>}</View>;

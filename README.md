@@ -2,6 +2,22 @@
 
 Pulse is a native **React Native** app backed by **FastAPI + SQLite**. The current target is a standalone Android APK you can install directly on a phone. No Expo account, Apple membership, app store, or Expo Go is needed for the APK.
 
+## Manager website dashboard
+
+The browser dashboard is the manager workspace only. It includes Operations, Team & resources, Festival map, incident review and approval, volunteer update notifications, server settings, and incident data controls. It does not include the volunteer reporting interface.
+
+On Windows, open two PowerShell terminals from the repository folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-frontend.ps1
+```
+
+Then open **http://127.0.0.1:5173** in your browser. Keep both terminals running. By default the website uses the local backend proxy at **http://127.0.0.1:8000**. The dashboard has no user authentication, so manager-only refers to its interface and workflows, not an access-control boundary.
+
 ## Install and test the Android APK
 
 The local build produces **`artifacts/Pulse-Android.apk`**. Transfer that file to your phone, or download it from the Python server:

@@ -14,7 +14,7 @@ export function TeamScreen({ onOpen }: { onOpen: (id: string) => void }) {
   const visible = data?.filter(item => (!availableOnly || item.available) && (zone === 'All zones' || item.zone === zone)) ?? [];
   return <ScrollView contentContainerStyle={s.screen}
     refreshControl={<RefreshControl refreshing={false} onRefresh={() => void refresh()} tintColor={palette.green} />}>
-    <Heading kicker="THE PEOPLE BEHIND THE RESPONSE" title="Team & resources." subtitle={`${data?.length ?? '—'} simulated resources across Riverside.`} />
+    <Heading kicker="SAFETY LEAD" title="Team & resources." />
     <Notice text={error} kind="error" />
     <View style={s.row}><Switch accessibilityLabel="Available only" value={availableOnly} onValueChange={setAvailableOnly} trackColor={{ true: '#6e9660' }} /><Text style={s.body}>Available only</Text></View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>

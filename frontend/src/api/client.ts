@@ -1,16 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Decision, Incident, Resource } from '../types'
 
-const base = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const baseKey = 'pulse.dashboard.api-base.v1'
+export const hiddenResolvedKey = 'pulse.dashboard.hidden-resolved-before.v1'
+export function apiBase() {
+  return (localStorage.getItem(baseKey) ?? import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+}
+export function resolvedIsHidden(incident: Incident) {
+  if (incident.status !== 'resolved') return false
+  const cutoff = localStorage.getItem(hiddenResolvedKey)
+  if (!cutoff) return false
+  const resolvedAt = [...incident.timeline].reverse().find(entry => entry.kind === 'resolved')?.timestamp ?? incident.updated_at
+  return Date.parse(resolvedAt) <= Date.parse(cutoff)
+}
+export function saveApiBase(value: string) {
+  if (value.trim()) localStorage.setItem(baseKey, value.trim().replace(/\/$/, ''))
+  else localStorage.removeItem(baseKey)
+  window.dispatchEvent(new Event('pulse-api-base-change'))
+}
 
-export async function request<T>(path: string, body?: unknown): Promise<T> {
+export async function request<T>(path: string, body?: unknown, options: { method?: string; headers?: Record<string, string>; timeoutMs?: number } = {}): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`${base}${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    response = await fetch(`${apiBase()}${path}`, {
+      method: options.method ?? (body === undefined ? 'GET' : 'POST'),
+      headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...options.headers },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(options.timeoutMs ?? 15000),
     })
   } catch {
     throw new Error('Unable to reach Pulse. Check your connection and that the backend is running.')
@@ -30,8 +46,23 @@ export const api = {
   report: (text: string) => request<Incident>('/api/reports', { text, reported_by: 'VOL-014' }),
   update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(`/api/incidents/${id}/updates`, { text, reported_by }),
   decide: (id: string, decision: Decision) => request<Incident>(`/api/incidents/${id}/decision`, decision),
+  modifySuggestion: (id: string, responder_ids: string[], actions: string[], note = '') => request<Incident>(`/api/incidents/${id}/suggestion`, { responder_ids, actions, note }),
   resolve: (id: string, note: string) => request<Incident>(`/api/incidents/${id}/resolve`, { note }),
+  alertDrafts: (id: string) => request<{ mode: 'gemini' | 'mock'; drafts: AlertDraft[] }>(`/api/incidents/${id}/alert-drafts`, {}, { timeoutMs: 55000 }),
+  sendAlerts: (id: string, messages: { volunteer_id: string; message: string }[]) => request<Incident>(`/api/incidents/${id}/alerts`, { messages, alerted_by: 'Manager' }),
+  clearAllIncidents: () => request<{ deleted_count: number }>('/api/incidents', undefined, { method: 'DELETE', headers: { 'X-Pulse-Mode': 'Manager' } }),
 }
+
+export interface AlertDraft {
+  volunteer_id: string
+  volunteer_name: string
+  role: string
+  task: string
+  message: string
+}
+
+export interface ManagerUpdate { id: number; incident_id: string; volunteer_name: string; location: string; message: string; kind?: 'report' | 'update' }
+export interface ManagerUpdateFeed { cursor: number; updates: ManagerUpdate[] }
 
 export function usePolling<T>(path: string, interval = 5000) {
   const [data, setData] = useState<T | null>(null)
