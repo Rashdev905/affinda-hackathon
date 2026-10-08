@@ -14,12 +14,12 @@ needed. The positions are explicitly labelled **mock**, not live phone tracking.
 
 `GET /api/resources` provides the existing roster and each responder's stored
 `zone`. The map assigns repeatable schematic positions within that zone, ordered
-by resource ID. This includes volunteers, paramedics, Security North/South/Stages,
-Site Operations and the first-aid teams. The current seed has 22 resources.
+by resource ID. This includes named volunteers, paramedics, and Security
+North/South/Stages. The current seed has 19 resources.
 
-Colours distinguish medical, security, site operations and other volunteers.
-Volunteer markers use the short volunteer number; security uses S1/S2/S3,
-operations OP, and first-aid teams A/B. Tap a marker or a
+Colours distinguish medical, security, and other volunteers.
+Volunteer markers use the short volunteer number; security uses S1/S2/S3.
+Tap a marker or a
 responder list item for their name, role, status, zone and assignment. Tap a zone
 or use the zone filters to narrow the lists. Volunteers see their assigned zone on
 the Report screen and receive instructions through their alerts.

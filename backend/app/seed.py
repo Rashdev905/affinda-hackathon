@@ -1,5 +1,7 @@
 from .schemas import Resource
 
+LEGACY_RESOURCE_IDS = {"TEAM-FIRSTAID-A", "TEAM-FIRSTAID-B", "OPS-001"}
+
 
 def seed_resources() -> list[Resource]:
     """Stable demo data; no incidents or assignments are inserted on startup."""
@@ -19,13 +21,10 @@ def seed_resources() -> list[Resource]:
         ("VOL-013", "Harper Singh", "Site volunteer", "Food Village", ["site_operations", "communication"]),
         ("VOL-015", "Ethan Cole", "Paramedic", "Lawn Stage", ["first_aid", "paramedic", "communication"]),
         ("VOL-016", "Maya Thompson", "Paramedic", "River Stage", ["first_aid", "paramedic", "communication"]),
-        ("VOL-014", "You · Volunteer 14", "General volunteer", "Lawn Stage", ["communication"]),
+        ("VOL-014", "Joon Kit Loong", "General volunteer", "Lawn Stage", ["communication"]),
         ("SEC-001", "Security · North", "Security staff", "North Gate", ["security", "safeguarding"]),
         ("SEC-002", "Security · South", "Security staff", "South Gate", ["security", "safeguarding"]),
         ("SEC-003", "Security · Stages", "Security staff", "River Stage", ["security", "safeguarding"]),
-        ("TEAM-FIRSTAID-A", "First Aid Team A", "First-aid team", "Medical Tent", ["first_aid"]),
-        ("TEAM-FIRSTAID-B", "First Aid Team B", "First-aid team", "Medical Tent", ["first_aid"]),
-        ("OPS-001", "Site Operations", "Site operations team", "Food Village", ["site_operations", "communication"]),
     ]
     return [Resource(
         id=id_, name=name, role=role, zone=zone, skills=skills,
@@ -33,6 +32,6 @@ def seed_resources() -> list[Resource]:
             ["Simulated paramedic qualification", "Simulated first-aid qualification"] if "paramedic" in skills
             else ["Simulated first-aid qualification"] if "first_aid" in skills else []
         ),
-        available=id_ != "VOL-010", status="on_break" if id_ == "VOL-010" else "available",
+        available=True, status="available",
     ) for id_, name, role, zone, skills in rows]
 

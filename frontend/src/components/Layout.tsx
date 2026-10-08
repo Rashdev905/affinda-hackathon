@@ -11,7 +11,7 @@ function LayoutContent() {
   const { data, error } = usePolling<{ status: string }>('/health', 10000)
   return <div className="app-shell">
     <aside className="sidebar">
-      <NavLink to="/safety" className="brand" aria-label="Pulse home"><span>pulse<span className="brand-period">.</span></span></NavLink>
+      <NavLink to="/safety" className="brand" aria-label="Pulse home"><img className="brand-logo" src="/pulse.svg" alt="" aria-hidden="true" /><span>pulse<span className="brand-period">.</span></span></NavLink>
       <div className="event-label"><span className="event-mark">R</span><div><strong>Riverside</strong><span>Festival coordination</span></div></div>
       <span className="nav-heading">WORKSPACE</span>
       <nav aria-label="Main navigation">

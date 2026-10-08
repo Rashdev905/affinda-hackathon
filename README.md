@@ -78,7 +78,7 @@ The build includes ARM64 and ARMv7 libraries and requires **Android 7.0 / API 24
 - Add an incident update. The mock recognizes the supplied unconsciousness escalation fixture and asks for new approval without assigning additional responders automatically.
 - **Resolve incident**, add an outcome, and confirm. Assigned resources become available again. **Share draft report** opens Android's share sheet.
 
-There are 22 simulated resources across six festival zones, including two paramedic volunteers. Incidents, timelines, alert inboxes, and acknowledgements persist in `backend/data/pulse.db`. The selected mode and volunteer login are remembered on the phone for the selected backend. Returning to the role menu ends that volunteer session and stops background alerts. The volunteer report picker shows their own reports and current assignments. Role navigation is for the demo, not authentication or server-side authorization. No real responders are contacted.
+There are 19 simulated resources across six festival zones: named volunteers and security staff, including two paramedic volunteers. Incidents, timelines, alert inboxes, and acknowledgements persist in `backend/data/pulse.db`. The selected mode and volunteer login are remembered on the phone for the selected backend. Returning to the role menu ends that volunteer session and stops background alerts. The volunteer report picker shows their own reports and current assignments. Role navigation is for the demo, not authentication or server-side authorization. No real responders are contacted.
 
 ## Emergency alerts and locked-phone testing
 

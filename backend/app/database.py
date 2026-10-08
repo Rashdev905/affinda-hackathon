@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Iterator
 
 from .schemas import Incident, Resource
-from .seed import seed_resources
+from .seed import LEGACY_RESOURCE_IDS, seed_resources
 
 
 def database_path() -> Path:
@@ -45,13 +45,20 @@ def initialize() -> None:
             message TEXT NOT NULL, location TEXT NOT NULL, created_at TEXT NOT NULL)""")
         if "kind" not in {row["name"] for row in db.execute("PRAGMA table_info(manager_updates)")}:
             db.execute("ALTER TABLE manager_updates ADD COLUMN kind TEXT NOT NULL DEFAULT 'update'")
+        db.executemany("DELETE FROM resources WHERE id = ?", ((resource_id,) for resource_id in LEGACY_RESOURCE_IDS))
         for resource in seed_resources():
             db.execute("INSERT OR IGNORE INTO resources VALUES (?, ?)", (resource.id, resource.model_dump_json()))
-            if resource.id in {"VOL-015", "VOL-016"}:
+            if resource.id in {"VOL-014", "VOL-015", "VOL-016"}:
                 row = db.execute("SELECT payload FROM resources WHERE id = ?", (resource.id,)).fetchone()
                 existing = Resource.model_validate_json(row["payload"])
                 existing.name, existing.role = resource.name, resource.role
                 db.execute("UPDATE resources SET payload = ? WHERE id = ?", (existing.model_dump_json(), resource.id))
+            elif resource.id == "VOL-010":
+                row = db.execute("SELECT payload FROM resources WHERE id = ?", (resource.id,)).fetchone()
+                existing = Resource.model_validate_json(row["payload"])
+                if existing.current_assignment is None and existing.status == "on_break":
+                    existing.available, existing.status = True, "available"
+                    db.execute("UPDATE resources SET payload = ? WHERE id = ?", (existing.model_dump_json(), resource.id))
 
 
 def list_resources(db: sqlite3.Connection) -> list[Resource]:

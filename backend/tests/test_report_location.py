@@ -22,8 +22,8 @@ def report(client, text, reporter="VOL-001"):
 @pytest.mark.parametrize("reporter,zone", [
     ("VOL-001", "Lawn Stage"), ("VOL-003", "River Stage"),
     ("VOL-005", "Food Village"), ("VOL-007", "North Gate"),
-    ("VOL-009", "South Gate"), ("TEAM-FIRSTAID-A", "Medical Tent"),
-    ("SEC-001", "North Gate"), ("OPS-001", "Food Village"),
+    ("VOL-009", "South Gate"), ("VOL-002", "Lawn Stage"),
+    ("SEC-001", "North Gate"), ("VOL-013", "Food Village"),
 ])
 def test_report_inherits_the_reporters_stored_zone(client, reporter, zone):
     text = "Small paper cut, bleeding stopped, otherwise well"
