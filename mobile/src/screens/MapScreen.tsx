@@ -6,7 +6,7 @@ import { festivalZones, locationZone, markerLabel, responderKind, responderKinds
 import { Badge, Button, Card, Heading, Icon, IncidentBadges, Notice, palette, s } from '../ui';
 import type { Incident, Resource } from '../types';
 
-export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpen: (id: string) => void }) {
+export function MapScreen({ onOpen }: { onOpen: (id: string) => void }) {
   const { url } = useConnection();
   const roster = usePolling<Resource[]>(url, '/api/resources');
   const incidents = usePolling<Incident[]>(url, '/api/incidents');
@@ -15,7 +15,6 @@ export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpe
   const [refreshing, setRefreshing] = useState(false);
   const resources = roster.data ?? [];
   const activeIncidents = (incidents.data ?? []).filter(incident => incident.status !== 'resolved');
-  const self = resources.find(resource => resource.id === volunteerId);
   const selected = resources.find(resource => resource.id === selectedId);
   const visibleResources = resources.filter(resource => !selectedZone || resource.zone === selectedZone);
   const visibleIncidents = activeIncidents.filter(incident => !selectedZone || locationZone(incident.location) === selectedZone);
@@ -39,10 +38,6 @@ export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpe
     <Notice text={roster.error || incidents.error} kind="error" />
     {!!(roster.error || incidents.error) && <Text style={s.small}>Showing the last received information. Pull down to retry.</Text>}
     {(roster.loading || incidents.loading) && <ActivityIndicator accessibilityLabel="Loading festival map" color={palette.green} />}
-    {self && <Pressable accessibilityRole="button" accessibilityLabel="Find my position" onPress={() => selectResource(self)} style={styles.you}>
-      <Icon name="locate-outline" /><View style={{ flex: 1 }}><Text style={s.label}>You are at {self.zone}</Text>
-        <Text style={s.small}>Your assigned demo zone is used for new reports.</Text></View><Icon name="arrow-forward" size={18} />
-    </Pressable>}
     <View style={styles.map} testID="festival-map">
       <View pointerEvents="none" style={styles.river} />
       <View pointerEvents="none" style={styles.verticalPath} />
@@ -65,14 +60,13 @@ export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpe
       })}
       {responderPositions(resources).map(({ resource, x, y }) => {
         const kind = responderKind(resource);
-        const isSelf = resource.id === volunteerId;
         return <Pressable key={resource.id} accessibilityRole="button"
-          accessibilityLabel={`${resource.name}${isSelf ? ', you' : ''}, ${resource.role}, ${resource.zone}, ${resource.status.replace('_', ' ')}`}
+          accessibilityLabel={`${resource.name}, ${resource.role}, ${resource.zone}, ${resource.status.replace('_', ' ')}`}
           accessibilityState={{ selected: resource.id === selectedId }} onPress={() => selectResource(resource)}
           style={[styles.markerTarget, { left: `${x}%`, top: `${y}%` }]}>
           <View style={[styles.marker, { backgroundColor: kind.color }, resource.status === 'on_break' && { opacity: 0.6 },
-            isSelf && styles.selfMarker, resource.id === selectedId && styles.selectedMarker]}>
-            <Text style={styles.markerText}>{isSelf ? 'YOU' : markerLabel(resource)}</Text>
+            resource.id === selectedId && styles.selectedMarker]}>
+            <Text style={styles.markerText}>{markerLabel(resource)}</Text>
           </View>
         </Pressable>;
       })}
@@ -92,7 +86,7 @@ export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpe
       </Pressable>)}
     </ScrollView>
     {selected && <Card>
-      <View style={s.row}><Icon name={responderKind(selected).icon} /><Badge text={selected.id === volunteerId ? 'Your position' : 'Selected responder'} /></View>
+      <View style={s.row}><Icon name={responderKind(selected).icon} /><Badge text="Selected responder" /></View>
       <Text style={s.h2}>{selected.name}</Text><Text style={s.body}>{selected.role} · {selected.zone}</Text>
       <Badge text={selected.status.replace('_', ' ')} />
       {selected.current_assignment && <Button title="View assigned incident" secondary onPress={() => onOpen(selected.current_assignment!)} />}
@@ -111,7 +105,7 @@ export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpe
     {visibleResources.map(resource => <Pressable key={resource.id} accessibilityRole="button" accessibilityLabel={`Select ${resource.name}`}
       onPress={() => selectResource(resource)} style={[styles.resourceRow, selectedId === resource.id && styles.selectedRow]}>
       <View style={[styles.listMarker, { backgroundColor: responderKind(resource).color }]}><Text style={styles.markerText}>{markerLabel(resource)}</Text></View>
-      <View style={{ flex: 1 }}><Text style={s.label}>{resource.name}{resource.id === volunteerId ? ' · You' : ''}</Text>
+      <View style={{ flex: 1 }}><Text style={s.label}>{resource.name}</Text>
         <Text style={s.small}>{resource.role} · {resource.zone}</Text><Text style={s.small}>{resource.status.replace('_', ' ')}</Text></View>
       <Icon name="chevron-forward" size={16} />
     </Pressable>)}
@@ -119,7 +113,6 @@ export function MapScreen({ volunteerId, onOpen }: { volunteerId?: string; onOpe
 }
 
 const styles = StyleSheet.create({
-  you: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15, borderRadius: 14, backgroundColor: '#e5edda' },
   map: { width: '100%', height: 490, backgroundColor: '#eef0da', borderWidth: 1, borderColor: '#d6dec8', borderRadius: 24, overflow: 'hidden' },
   river: { position: 'absolute', right: '-7%', top: '-10%', width: '12%', height: '125%', backgroundColor: '#c5e1e3', borderLeftWidth: 5, borderColor: '#b1d5d6', transform: [{ rotate: '-3deg' }] },
   verticalPath: { position: 'absolute', left: '45%', top: 0, bottom: 0, width: '7%', backgroundColor: '#fffaf0', borderLeftWidth: 1, borderRightWidth: 1, borderColor: '#e5ddcb' },
@@ -135,7 +128,6 @@ const styles = StyleSheet.create({
   incidentPinText: { fontSize: 11, color: '#fff', fontWeight: '800' },
   markerTarget: { position: 'absolute', width: 38, height: 38, marginLeft: -19, marginTop: -19, alignItems: 'center', justifyContent: 'center' },
   marker: { width: 29, height: 29, borderRadius: 15, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  selfMarker: { width: 34, height: 34, borderRadius: 17, borderWidth: 3, borderColor: '#e6ff99' },
   selectedMarker: { borderColor: '#193d31', borderWidth: 3 },
   markerText: { fontSize: 10, fontWeight: '800', color: '#fff' },
   pathLabel: { position: 'absolute', bottom: 11, alignSelf: 'center', color: '#677457', fontSize: 9, fontWeight: '700', letterSpacing: 2 },

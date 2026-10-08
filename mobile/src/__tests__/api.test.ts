@@ -1,4 +1,23 @@
-import { request, validateServer } from '../api';
+import { client, request, validateServer } from '../api';
+
+test.each(['report', 'update'] as const)('%s waits for a slow Gemini response without sending twice', async method => {
+  jest.useFakeTimers();
+  try {
+    let finish: (response: any) => void = () => {};
+    let signal: AbortSignal | undefined;
+    global.fetch = jest.fn((_url, options) => {
+      signal = options?.signal as AbortSignal;
+      return new Promise(resolve => { finish = resolve; });
+    });
+    const api = client('http://pc:8000');
+    const pending = method === 'report' ? api.report('Someone is dying', 'VOL-001') : api.update('INC-1', 'Breathing normally', 'VOL-001');
+    jest.advanceTimersByTime(20000);
+    expect(signal?.aborted).toBe(false);
+    finish({ ok: true, json: async () => ({ id: 'INC-1', parser_mode: 'gemini' }) });
+    await expect(pending).resolves.toMatchObject({ parser_mode: 'gemini' });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  } finally { jest.useRealTimers(); }
+});
 
 test('validates server URLs and the production HTTPS requirement', () => {
   expect(validateServer(' http://192.168.1.42:8000/ ')).toBe('http://192.168.1.42:8000');

@@ -48,15 +48,14 @@ test('mock coordinates are repeatable within the stored zone, independent of fet
   expect(responderPositions([{ ...alex, zone: 'Unknown area' }])).toEqual([]);
 });
 
-test('volunteer sees their position and can inspect a security responder', async () => {
-  render(<MapScreen volunteerId={alex.id} onOpen={jest.fn()} />);
-  await screen.findByText('You are at Lawn Stage');
+test('manager can inspect responders and switch zone filters', async () => {
+  render(<MapScreen onOpen={jest.fn()} />);
+  await screen.findByRole('button', { name: 'Select Alex Morgan' });
   expect(screen.getByText('Mock positions')).toBeTruthy();
   fireEvent.press(screen.getByRole('button', { name: /Security North, Security staff, North Gate/ }));
   expect(screen.getByText('Selected responder')).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Select Alex Morgan' })).toBeNull();
-  fireEvent.press(screen.getByRole('button', { name: 'Find my position' }));
-  expect(screen.getByText('Your position')).toBeTruthy();
+  fireEvent.press(screen.getByRole('button', { name: 'Show Lawn Stage' }));
   expect(screen.getByRole('button', { name: 'Select Alex Morgan' })).toBeTruthy();
 });
 

@@ -16,8 +16,9 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 def create_report(body: ReportInput) -> Incident:
     with database.connection() as db:
         resources = database.list_resources(db)
+    reporter_zone = next((resource.zone for resource in resources if resource.id == body.reported_by), None)
     try:
-        parsed, plan, parser_mode = analyze_report(body.text, resources)
+        parsed, plan, parser_mode = analyze_report(body.text, resources, reporter_zone=reporter_zone)
     except AnalysisServiceError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     location_note = apply_reporter_location(parsed, resources, body.reported_by, parser_mode)

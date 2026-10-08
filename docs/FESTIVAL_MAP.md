@@ -1,9 +1,9 @@
 # Festival map and automatic report location
 
-Both roles now have a **Map** tab:
+The **Map** tab is reserved for managers:
 
 - Manager: Operations, Team, Map, Settings.
-- Volunteer: Report, My alerts, Map, Settings.
+- Volunteer: Report, My alerts, Settings. The map screen is not mounted in this mode.
 
 The native React Native screen draws a simple Riverside festival with Lawn Stage,
 River Stage, Food Village, North Gate, South Gate and Medical Tent, walking paths
@@ -19,9 +19,10 @@ Site Operations and the first-aid teams. The current seed has 22 resources.
 
 Colours distinguish medical, security, site operations and other volunteers.
 Volunteer markers use the short volunteer number; security uses S1/S2/S3,
-operations OP, and first-aid teams A/B. Your own marker says YOU. Tap a marker or a
+operations OP, and first-aid teams A/B. Tap a marker or a
 responder list item for their name, role, status, zone and assignment. Tap a zone
-or use the zone filters to narrow the lists. Volunteers can use **Find my position**.
+or use the zone filters to narrow the lists. Volunteers see their assigned zone on
+the Report screen and receive instructions through their alerts.
 
 Active incidents from `GET /api/incidents` appear as red count badges in their
 matching zone. Tap a badge, then an incident, to open the existing detail screen.
@@ -60,11 +61,11 @@ are applied to new incidents; existing incidents are not migrated or moved.
 
 - `mobile/src/festivalMap.ts`: shared schematic layout, markers and positions.
 - `mobile/src/screens/MapScreen.tsx`: map, filters, responder and incident details.
-- `mobile/App.tsx`: Map tab in both roles.
+- `mobile/App.tsx`: Map tab in Manager mode only.
 - `mobile/src/screens/ReportScreen.tsx`: assigned-zone display and reporting copy.
 - `backend/app/services/report_location.py`: server-side zone fallback.
 - `backend/app/routers/reports.py`: apply fallback before recommendations/persistence.
-- `mobile/app.config.ts`: Android release 0.6.0, version code 9.
+- `mobile/app.config.ts`: Android release 0.6.1, version code 10.
 - New map and report-location tests; one existing clarification test updated to
   expect the newly automatic zone.
 
@@ -78,7 +79,7 @@ No database migration or new API endpoint is required.
    the updated Metro/Expo preview. A previous standalone APK will not gain a new
    tab just by restarting Python.
 3. On one phone select Manager and open Map. On the other select Volunteer and
-   log in with `0001`. Its Map should show YOU at Lawn Stage.
+   log in with `0001`. Its Report screen shows Lawn Stage; it has no Map tab.
 4. On the volunteer phone submit **Someone is dying**, without giving a location.
    The incident should show Lawn Stage and ask whether the person is breathing.
 5. The manager's map should show an active incident at Lawn Stage within the next

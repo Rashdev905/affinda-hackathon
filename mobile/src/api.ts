@@ -39,13 +39,13 @@ export async function request<T>(base: string, path: string, body?: unknown, opt
 export function client(base: string) {
   return {
     volunteerLogin: (identifier: string) => request<Resource>(base, `/api/volunteers/${identifier}`),
-    report: (text: string, reportedBy = 'VOL-014') => request<Incident>(base, '/api/reports', { text, reported_by: reportedBy }),
-    update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(base, `/api/incidents/${id}/updates`, { text, reported_by }),
+    report: (text: string, reportedBy = 'VOL-014') => request<Incident>(base, '/api/reports', { text, reported_by: reportedBy }, { timeoutMs: 55000 }),
+    update: (id: string, text: string, reported_by = 'VOL-014') => request<Incident>(base, `/api/incidents/${id}/updates`, { text, reported_by }, { timeoutMs: 55000 }),
     decide: (id: string, decision: Decision) => request<Incident>(base, `/api/incidents/${id}/decision`, decision),
     modifySuggestion: (id: string, responder_ids: string[], actions: string[], note: string) =>
       request<Incident>(base, `/api/incidents/${id}/suggestion`, { responder_ids, actions, note, modified_by: 'Manager' }),
     resolve: (id: string, note: string) => request<Incident>(base, `/api/incidents/${id}/resolve`, { note }),
-      alertDrafts: (id: string) => request<{ mode: 'openai' | 'mock' | 'ollama'; drafts: AlertDraft[] }>(base, `/api/incidents/${id}/alert-drafts`, {}, { timeoutMs: 100000 }),
+      alertDrafts: (id: string) => request<{ mode: 'gemini' | 'mock'; drafts: AlertDraft[] }>(base, `/api/incidents/${id}/alert-drafts`, {}, { timeoutMs: 55000 }),
     alert: (id: string, messages: { volunteer_id: string; message: string }[]) => request<Incident>(base, `/api/incidents/${id}/alerts`, { messages, alerted_by: 'Manager' }),
     clearAllIncidents: () => request<{ deleted_count: number }>(base, '/api/incidents', undefined, { method: 'DELETE', headers: { 'X-Pulse-Mode': 'Manager' } }),
   };

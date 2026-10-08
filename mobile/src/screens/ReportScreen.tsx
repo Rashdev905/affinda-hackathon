@@ -99,14 +99,16 @@ A coordinated response.</Text><Text style={[s.body, { color: '#cddfc0' }]}>You s
           <View style={s.divider} />
           <VoiceRecorder key={shown.id} base={url} active={active} disabled={busy} onBusyChange={setVoiceBusy}
             onTranscript={transcript => setUpdate(previous => previous ? `${previous}\n${transcript}` : transcript)} />
-          <Field label={shown.follow_up_question ?? 'Anything changed?'} multiline value={update} onChangeText={setUpdate}
-            maxLength={5000} placeholder="Share the latest information…" />
+          <Text style={s.h3}>Anything new or changed since the initial report?</Text>
+          <Text style={s.small}>Answer any question below, or share new information and corrections. Mention a different zone if the incident location changes.</Text>
+          <Field label={shown.follow_up_question ?? 'New information or correction'} multiline value={update} onChangeText={setUpdate}
+            maxLength={5000} placeholder="Share only what has changed…" />
           <Button title="Send update" icon="arrow-forward" busy={busy} disabled={voiceBusy || !update.trim() || update.length > 5000} onPress={() => void submit(true)} />
         </> : <Notice text="This incident has been resolved by the safety lead." kind="success" />}
         <Button title="View incident" secondary onPress={() => onOpen(shown.id)} />
       </Card>
       <Button title="New report" icon="add" secondary disabled={busy || voiceBusy} onPress={() => { setIncident(null); setError(''); setMessage(''); setUpdate(''); setShowText(false); }} />
     </>}
-    <Text style={s.small}>Analysis: {shown?.parser_mode === 'openai' ? 'OpenAI' : shown?.parser_mode === 'mock' ? 'mock' : 'server-configured'} · Manager approval before assignment</Text>
+    <Text style={s.small}>Analysis: {shown?.parser_mode === 'gemini' ? 'Gemini' : shown?.parser_mode === 'openai' ? 'AI (legacy incident)' : shown?.parser_mode === 'mock' ? 'mock' : 'server-configured'} · Manager approval before assignment</Text>
   </ScrollView>;
 }

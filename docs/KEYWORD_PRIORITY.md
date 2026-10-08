@@ -1,8 +1,9 @@
 # Keyword medical priority integration
 
-Pulse now applies the synthetic dataset's priority policy using local English
-keyword rules. No LLM was added or trained. The parser does not read the dataset
-at runtime, need an API key, or make a network request.
+This documents the local English keyword component, based on the synthetic
+dataset's policy. The subsequent Gemini merge adds optional LLM analysis and
+drafting; no model was trained. The keyword parser itself does not read the
+dataset at runtime, need an API key, or make a network request.
 
 ## What changed
 
@@ -11,10 +12,11 @@ at runtime, need an API key, or make a network request.
 - `ai_mock.py` uses those rules for submitted reports and updates, including
   reviewed voice transcripts. It preserves the reported words in observations,
   asks for missing details and retains an active incident's highest priority.
-- `ai_analysis.py` defaults to `mock`, even when an OpenAI key exists. The existing
-  possible-fracture safeguard shares the new context/negation handling. An
-  explicit `PULSE_AI_MODE=openai` still selects the previously implemented adapter;
-  this change adds no prompt or training integration to it.
+- `ai_analysis.py` selects Gemini when configured and otherwise uses `mock`.
+  Explicit `PULSE_AI_MODE=mock` keeps keyword-only analysis. Current high-risk
+  keyword signals also act as priority floors on Gemini responses, including
+  dying, unconsciousness, breathing warnings and possible fractures. The old
+  OpenAI adapter has been replaced; old `openai` mode settings redirect to Gemini.
 - `/health` reports the same default mode. No new API fields or phone build are
   required. The app already displays the score's High/Medium/Low band.
 - `backend/tests/test_medical_priority.py` covers the 60 training examples plus

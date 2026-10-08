@@ -15,7 +15,7 @@ The deterministic parser in `backend/app/services/ai_mock.py` was checked locall
 
 The previous mock used a short keyword list that included `unconscious` but not `dying`. The keyword integration fixes this example and adds three-level medical rules. This original reproduction did **not** prove which mode the user's running backend was using.
 
-Check the running server's `GET /health` response for `analysis_mode`, and an incident's `parser_mode`. `PULSE_AI_MODE=mock` selects the keyword parser. Without an explicit mode, the backend now defaults to mock even if `OPENAI_API_KEY` is present. The pre-existing OpenAI adapter requires an explicit `PULSE_AI_MODE=openai`. Fine-tuning or changing an OpenAI prompt has no effect on the keyword parser.
+Check the running server's `GET /health` response for `analysis_mode`, and an incident's `parser_mode`. `PULSE_AI_MODE=mock` selects the keyword parser. Following the Gemini merge, an unset mode selects Gemini when `GEMINI_API_KEY` exists, otherwise mock. Old `openai` mode settings redirect to Gemini. The keyword rules still provide high-risk floors on Gemini results; no model was fine-tuned.
 
 ## What the labels mean
 
@@ -92,7 +92,7 @@ The new proposed output is:
 
 The implemented integration uses deterministic keyword rules and preserves the existing response schema and human assignment approval. For a future LLM integration, either add a separate classification step with a validated adapter to the existing score bands, or adapt reviewed examples to the complete existing analysis schema. Do not substitute these JSON objects into that schema unchanged, or invent responder/treatment fields merely to satisfy validation. Numeric scoring within a band requires its own reviewed policy. In a real emergency, emergency-service contact must not be delayed by in-app assignment approval.
 
-No LLM prompt demonstrations or training job were added. The 60 training examples serve as keyword regression fixtures; validation/test groups are not loaded by the parser or those tests. Merely copying additional examples into the dataset does not change the rules or a hosted model.
+No training job or example demonstrations were added to a model. The Gemini merge adapts the policy text to its existing full analysis schema. The 60 training examples serve as keyword regression fixtures; validation/test groups are not loaded by the parser or those tests. Merely copying additional examples into the dataset does not change the rules or a hosted model.
 
 ## Rebuild and evaluate locally
 

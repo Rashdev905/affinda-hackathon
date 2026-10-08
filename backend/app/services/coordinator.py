@@ -3,7 +3,7 @@ from ..schemas import Incident, Recommendation, ResponderAssignment, ResponderNe
 
 
 def default_response_plan(incident) -> ResponsePlan:
-    """Deterministic fallback used when OpenAI is not configured."""
+    """Deterministic fallback used when Gemini is not configured."""
     if incident.type == "medical":
         needs = [ResponderNeed(required_skill="first_aid", responsibility="Assess the person and provide first aid.")]
         if incident.priority_score >= 70:
