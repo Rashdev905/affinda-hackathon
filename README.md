@@ -2,21 +2,45 @@
 
 Pulse is a native **React Native** app backed by **FastAPI + SQLite**. The current target is a standalone Android APK you can install directly on a phone. No Expo account, Apple membership, app store, or Expo Go is needed for the APK.
 
-## Manager website dashboard
+## Run the backend, website, and mobile app
 
-The browser dashboard is the manager workspace only. It includes Operations, Team & resources, Festival map, incident review and approval, volunteer update notifications, server settings, and incident data controls. It does not include the volunteer reporting interface.
+On Windows, open a PowerShell terminal in the repository folder. On a fresh checkout, run setup once:
 
-On Windows, open two PowerShell terminals from the repository folder:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -InstallLocalNode
+```
+
+Keep the backend running whenever you use the website or mobile app. Start each service in its own PowerShell terminal from the repository folder.
+
+**1. Backend API** (terminal 1):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1
 ```
 
+This serves the API at **http://127.0.0.1:8000** and API docs at **http://127.0.0.1:8000/docs**. To connect a phone over Wi-Fi, use `-Lan` instead; the script prints the computer's available addresses:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1 -Lan
+```
+
+**2. Manager website** (terminal 2):
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/start-frontend.ps1
 ```
 
-Then open **http://127.0.0.1:5173** in your browser. Keep both terminals running. By default the website uses the local backend proxy at **http://127.0.0.1:8000**. The dashboard has no user authentication, so manager-only refers to its interface and workflows, not an access-control boundary.
+Open **http://127.0.0.1:5173** in your browser. The website uses the local backend proxy at **http://127.0.0.1:8000** by default. The startup script installs website dependencies if they are missing.
+
+**3. Mobile app, live development** (terminal 3):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/start-mobile.ps1
+```
+
+Scan the QR code with a compatible Expo Go app on the same Wi-Fi. If automatic address detection fails, pass the computer's Wi-Fi address with `-HostAddress`, for example `-HostAddress '192.168.1.42'`. In the app's Connection settings, set the backend URL to `http://192.168.1.42:8000` (use the address printed by the backend when started with `-Lan`). A phone cannot use `127.0.0.1` to reach the computer.
+
+The QR workflow runs the JavaScript development preview. To use the complete Android app, including custom native alert features, build and install the standalone APK as described below. The website dashboard is manager-only; it does not include volunteer reporting. It has no user authentication, so manager-only describes its interface and workflows, not an access-control boundary.
 
 ## Install and test the Android APK
 
@@ -141,7 +165,12 @@ For a new checkout with Python installed:
 powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -InstallLocalNode
 ```
 
-This installs locked Python/mobile packages; it does not download the Android SDK. For a local native build on another machine, install Android platform 36, build tools 36.0.0, NDK 27.1.12297006, and CMake 3.22.1 under `.tools/android-sdk`, plus Java 17 or 21.
+This installs locked Python/mobile packages; it does not download the Android SDK. To build an APK, open **Android Studio → More Actions → SDK Manager** and set **Android SDK Location** to `<repository>\.tools\android-sdk` (for this checkout: `C:\Users\Joonk\Documents\GitHub\affinda-hackathon\.tools\android-sdk`). Install:
+
+- **SDK Platforms:** Android API 36.
+- **SDK Tools** (enable **Show Package Details**): Android SDK Build-Tools 36.0.0, NDK (Side by side) 27.1.12297006, and CMake 3.22.1.
+
+Java 17 or 21 is also required for the native build.
 
 ## Rebuild the APK
 
@@ -155,15 +184,15 @@ powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1 -ApiUrl 'http://Y
 
 The script synchronizes the mobile source to an isolated `C:\pulse-apk-<id>` build folder because this repository's long Windows path exceeds native compiler limits. Its location is recorded in `.run/apk-build-root.txt` and reused for incremental builds. SDK and Gradle caches stay in this project; a temporary drive alias gives those tools a space-free path and is removed afterward. The resulting APK is copied back into `artifacts/`. Never use the generated test signing key for a production store release.
 
-## Develop with live reload (optional)
+## Develop the mobile app with live reload (optional)
 
-The standalone APK does not need this. For live frontend development, install an SDK 54-compatible Expo Go and run:
+For a JavaScript development preview, install an SDK 54-compatible Expo Go and run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/start-mobile.ps1
 ```
 
-Scan its QR code on the same Wi-Fi. The script prefers the Wi-Fi interface; override it with `-HostAddress 'YOUR-IP'` if needed. `scripts/start-frontend.ps1` now starts this native development server. The old website remains in `frontend/` only as a historical reference.
+Scan its QR code on the same Wi-Fi. The script prefers the Wi-Fi interface; override it with `-HostAddress 'YOUR-IP'` if needed. Keep the backend running and configure the app's Connection settings with the computer's LAN URL, such as `http://192.168.1.42:8000`. The website is started separately with `scripts/start-frontend.ps1` as described above. Expo Go is a development preview; use the standalone APK for custom native Android alert features.
 
 ## Checks and architecture
 
