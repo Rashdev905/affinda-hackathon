@@ -38,7 +38,7 @@ def health():
         db.execute("SELECT 1 FROM incidents LIMIT 1")
     analysis_mode = os.getenv("PULSE_AI_MODE", "").strip().lower()
     if not analysis_mode:
-        analysis_mode = "openai" if os.getenv("OPENAI_API_KEY") else "mock"
+        analysis_mode = "mock"
     return {"status": "ok", "service": "pulse", "analysis_mode": analysis_mode}
 
 

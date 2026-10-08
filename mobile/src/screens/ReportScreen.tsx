@@ -3,13 +3,13 @@ import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { client, errorMessage, usePolling } from '../api';
 import { useConnection } from '../connection';
 import { Badge, Button, Card, Field, Heading, Icon, IncidentBadges, Notice, palette, s } from '../ui';
-import type { Incident } from '../types';
+import type { Incident, Resource } from '../types';
 import { VoiceRecorder } from '../VoiceRecorder';
 
 const examples = [
-  { label: 'Medical', text: "Someone collapsed near the Lawn Stage toilets. They're awake but really dizzy and a crowd is forming." },
-  { label: 'Lost child', text: 'A lost child is at North Gate, separated from their parent. I am staying with them at the information point.' },
-  { label: 'Site hazard', text: 'There is a broken cable cover at Food Village, beside the water station.' },
+  { label: 'Medical', text: "Someone collapsed nearby. They're awake but really dizzy and a crowd is forming." },
+  { label: 'Lost child', text: 'A lost child here is separated from their parent. I am staying with them at the information point.' },
+  { label: 'Site hazard', text: 'There is a broken cable cover beside the water station.' },
 ];
 
 export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', volunteerName = 'Volunteer' }: {
@@ -18,6 +18,8 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
   const { url } = useConnection();
   const volunteerCode = volunteerId.replace(/^VOL-/, '').padStart(4, '0');
   const reports = usePolling<Incident[]>(url, '/api/incidents');
+  const resources = usePolling<Resource[]>(url, '/api/resources');
+  const reportingZone = resources.data?.find(resource => resource.id === volunteerId)?.zone;
   const [text, setText] = useState('');
   const [incident, setIncident] = useState<Incident | null>(null);
   const [update, setUpdate] = useState('');
@@ -48,6 +50,9 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
     refreshControl={<RefreshControl refreshing={false} onRefresh={() => void reports.refresh()} tintColor={palette.green} />}>
     <Heading kicker="ON THE GROUND. IN THE LOOP." title="Report incident." subtitle="Tell us what’s happening. We’ll help make it clear." />
     <Badge text={`${volunteerCode} · ${volunteerName}`} />
+    <View style={s.row}><Icon name="location-outline" /><Text style={s.small}>{reportingZone
+      ? `Reporting from ${reportingZone} · assigned demo zone`
+      : 'Your assigned zone is added automatically when available.'}</Text></View>
     <Notice text={error || reports.error} kind="error" />
     <Notice text={message} kind="success" />
     {!shown ? <>
@@ -61,15 +66,15 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
           onPress={() => setShowText(true)} />}
         {(showText || !!text) && <>
         <Field label="What’s happening?" multiline value={text} onChangeText={setText} maxLength={5000}
-          placeholder="Someone needs help near the Lawn Stage toilets…" style={[s.input, { minHeight: 180 }]} />
-        <Text style={s.small}>Include the festival zone, a landmark, and what you can see.</Text>
+          placeholder="Someone needs help. They are awake but very dizzy…" style={[s.input, { minHeight: 180 }]} />
+        <Text style={s.small}>Describe what you can see. Your assigned zone is added automatically; mention another festival zone if the incident is elsewhere. A nearby landmark is helpful.</Text>
         <View style={s.row}>{examples.map(example => <Pressable key={example.label} accessibilityRole="button" disabled={voiceBusy || busy}
           onPress={() => setText(example.text)} style={s.chip}><Text style={s.small}>{example.label} +</Text></Pressable>)}</View>
         </>}
         {!!text && <Text style={s.small}>Check names, location, and key details before submitting.</Text>}
         {text.length > 5000 && <Notice text="Please shorten the report to 5,000 characters before submitting." kind="error" />}
         <Button title="Submit incident" icon="arrow-forward" busy={busy} disabled={voiceBusy || !url || text.trim().length < 3 || text.length > 5000} onPress={() => void submit(false)} />
-        <Text style={s.small}>Emergency reports alert volunteers automatically. A manager approves responder assignments.</Text>
+        <Text style={s.small}>A manager reviews your report, approves responders and sends their alerts.</Text>
       </Card>
       <Button title="Update an existing incident" secondary icon="chatbubble-outline" disabled={voiceBusy || busy} onPress={() => setShowExisting(!showExisting)} />
       {showExisting && <Card>

@@ -63,6 +63,14 @@ Native service source is in `mobile/plugins/android/`; `withPulseAlerts.js` regi
 
 Android platform references: [foreground service types](https://developer.android.com/develop/background-work/services/fgs/service-types), [Doze and battery restrictions](https://developer.android.com/training/monitoring-device-state/doze-standby), [full-screen alert permission and lock-screen behavior](https://source.android.com/docs/core/permissions/fsi-limits).
 
+## Festival map and report locations
+
+Manager and Volunteer modes now both have a **Map** tab with a schematic festival, mock positions for the full responder roster, and active incident markers. Tap zones or responders to inspect them. Positions use each resource's stored zone; this is not GPS tracking.
+
+New reports automatically use the reporting volunteer's assigned zone when no location is stated. Alex Morgan (`0001`) can report "Someone is dying" and the backend uses Lawn Stage. An explicitly mentioned zone overrides that default. The original text stays in the timeline, alongside a note explaining inferred location. See [map implementation and two-phone test steps](docs/FESTIVAL_MAP.md).
+
+Install Android **0.6.0** to get the Map tab in a standalone APK; the Python backend must also contain the location changes. Development previews load the updated mobile code through Metro.
+
 ## Voice reporting
 
 The phone records AAC audio and uploads it to `POST /api/transcriptions` as a multipart `audio` field. The Python backend runs faster-whisper `base.en` locally on the laptop CPU and returns an editable English transcript. Recording and transcription do not create an incident; the user explicitly submits the reviewed text through the existing reports API. No cloud speech account or API key is required.
@@ -75,11 +83,17 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-speech.ps1
 
 Model setup requires internet once; subsequent transcription uses only the local model. Python packages remain in `backend/.venv`. Voice messages stop automatically after 1 minute 50 seconds, or when leaving the Report screen or backgrounding the app. The API rejects recordings over two minutes or 10 MB. Silence, unreadable audio, missing models, and a busy recognizer return actionable errors. Failed uploads can be retried from the same screen without recording again; typing remains available. Recordings are temporary, are not stored with incidents, and are deleted from the phone after successful transcription or discard. Restarting the app does not preserve a pending recording.
 
-Install APK version **0.5.2** over the previous app to combine emergency alerts, Manager/Volunteer modes, and voice recording. It retains the SDK-compatible native dependencies from 0.2.1. The existing backend with `--reload` picks up code changes automatically. Speech recognition is local; incident analysis uses the deterministic mock unless OpenAI is configured. Check transcripts, especially place names and speech in noisy surroundings.
+Install APK version **0.6.0** over the previous app to combine the festival map, emergency alerts, Manager/Volunteer modes, and voice recording. It retains the SDK-compatible native dependencies from 0.2.1. The existing backend with `--reload` picks up code changes automatically. Speech recognition is local; incident analysis uses the deterministic mock unless OpenAI is explicitly selected. Check transcripts, especially place names and speech in noisy surroundings.
 
-## LLM incident analysis
+## Keyword incident priority
 
-Without an OpenAI key, reports use the deterministic mock. To enable OpenAI analysis, set these variables in the PowerShell terminal used to start the backend:
+Reports now use local keyword rules by default, including when an OpenAI key is present. `Someone is dying` is high priority; unclear illness is medium; clearly minor injuries with reassuring context are low. The rules handle common transcription errors, scoped negation and escalation on updates. They are demo heuristics, not validated medical triage. See [keyword priority integration and testing](docs/KEYWORD_PRIORITY.md).
+
+To explicitly select the keyword parser, set `$env:PULSE_AI_MODE = 'mock'` in the terminal before starting the backend. `/health` should show `analysis_mode: mock`. No API key, training job or APK rebuild is needed for these backend changes.
+
+## Optional existing LLM incident analysis
+
+Reports use the deterministic keyword parser unless OpenAI analysis is explicitly selected. To enable the existing OpenAI adapter, set these variables in the PowerShell terminal used to start the backend:
 
 ```powershell
 $env:OPENAI_API_KEY = 'your-key'

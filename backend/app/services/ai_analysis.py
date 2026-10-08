@@ -2,13 +2,13 @@
 
 import json
 import os
-import re
 
 import httpx
 
 from ..schemas import Incident, LLMAnalysis, ParsedReport, ResponderAssignment, ResponderNeed, Resource, ResponsePlan
 from .ai_mock import parse_report, parse_update
 from .coordinator import default_response_plan
+from .medical_priority import has_possible_fracture
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 OLLAMA_CHAT_URL = os.getenv("PULSE_OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/") + "/api/chat"
@@ -49,24 +49,9 @@ class AnalysisServiceError(Exception):
     pass
 
 
-_FRACTURE_SIGNAL = re.compile(
-    r"\b(?:broken|fractured)\s+(?:(?:left|right)\s+)?(?:leg|arm|ankle|wrist|hip|rib|bone)\b"
-    r"|\bfracture\b"
-    r"|\b(?:leg|arm|ankle|wrist|hip|rib)\s+(?:is\s+)?(?:(?:possibly|suspected to be|may be|might be|could be)\s+)?(?:a\s+)?broken\b"
-    r"|\bsuspected\s+(?:broken|fractured)\s+(?:(?:left|right)\s+)?(?:leg|arm|ankle|wrist|hip|rib|bone)\b",
-    re.IGNORECASE,
-)
-_FRACTURE_NEGATION = re.compile(
-    r"\b(?:no|not|without|never)\s+(?:(?:evidence|signs|indication)\s+of\s+)?(?:a\s+|any\s+|the\s+)?(?:broken|fractured|fracture)\b"
-    r"|\b(?:does not|doesn't|did not|didn't)\s+(?:appear to have|have|sustain)\s+(?:a\s+)?(?:broken|fractured|fracture)\b"
-    r"|\bfracture\s+(?:was\s+)?(?:ruled out|not present)\b",
-    re.IGNORECASE,
-)
-
-
 def _apply_safety_overrides(parsed: ParsedReport, plan: ResponsePlan, context: str) -> None:
     """Keep an explicit possible fracture from being downgraded by model wording."""
-    if not _FRACTURE_SIGNAL.search(context) or _FRACTURE_NEGATION.search(context):
+    if not has_possible_fracture(context):
         return
     parsed.type = "medical"
     parsed.priority_score = max(parsed.priority_score, 70)
@@ -92,9 +77,8 @@ def _apply_safety_overrides(parsed: ParsedReport, plan: ResponsePlan, context: s
 
 
 def provider_mode() -> str:
-    mode = os.getenv("PULSE_AI_MODE", "").strip().lower()
-    if not mode:
-        mode = "openai" if os.getenv("OPENAI_API_KEY") else "mock"
+    # A stored API key alone must not opt the keyword demo into paid analysis.
+    mode = os.getenv("PULSE_AI_MODE", "").strip().lower() or "mock"
     if mode not in {"mock", "openai"}:
         raise AnalysisServiceError("PULSE_AI_MODE must be 'mock' or 'openai'.")
     if mode == "openai" and not os.getenv("OPENAI_API_KEY"):

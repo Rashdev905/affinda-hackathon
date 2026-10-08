@@ -7,6 +7,7 @@ from ..schemas import Incident, Recommendation, ReportInput
 from ..services.ai_analysis import AnalysisServiceError, analyze_report
 from ..services.coordinator import recommend
 from ..services.incidents import event, now
+from ..services.report_location import apply_reporter_location
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
 
@@ -19,6 +20,7 @@ def create_report(body: ReportInput) -> Incident:
         parsed, plan, parser_mode = analyze_report(body.text, resources)
     except AnalysisServiceError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    location_note = apply_reporter_location(parsed, resources, body.reported_by, parser_mode)
     timestamp = now()
     incident = Incident(
         **parsed.model_dump(), id="INC-" + uuid4().hex[:8].upper(),
@@ -30,6 +32,8 @@ def create_report(body: ReportInput) -> Incident:
     with database.connection(write=True) as db:
         incident.recommendation = recommend(incident, database.list_resources(db), plan)
         event(incident, "reported", body.reported_by, body.text)
+        if location_note:
+            event(incident, "location_inferred", "Pulse", location_note)
         event(incident, "suggestion", f"Pulse · {parser_mode} analysis", "Report structured. Suggested response awaits a manager decision.")
         database.save_incident(db, incident)
     return incident

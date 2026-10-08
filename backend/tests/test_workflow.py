@@ -163,7 +163,10 @@ def test_resolved_incidents_reject_mutations(client):
 
 def test_generic_report_can_be_clarified_without_losing_original(client):
     incident = report(client, "We need someone to help out here.")
-    assert incident["missing_information"] == ["location"]
+    # The default reporter has a stored zone; a later explicit location can
+    # correct that default without replacing the original report.
+    assert incident["location"] == "Lawn Stage"
+    assert incident["missing_information"] == []
     clarified = client.post(f"/api/incidents/{incident['id']}/updates", json={"text": "At River Stage by the entrance."}).json()
     assert clarified["location"] == "River Stage"
     assert clarified["summary"] == incident["summary"]

@@ -9,6 +9,7 @@ import { Button, Card, Heading, Icon, palette, s, type IconName } from './src/ui
 import { ReportScreen } from './src/screens/ReportScreen';
 import { BoardScreen } from './src/screens/BoardScreen';
 import { TeamScreen } from './src/screens/TeamScreen';
+import { MapScreen } from './src/screens/MapScreen';
 import { ConnectionScreen } from './src/screens/ConnectionScreen';
 import { IncidentScreen } from './src/screens/IncidentScreen';
 import { VolunteerAlertsScreen } from './src/screens/VolunteerAlertsScreen';
@@ -24,6 +25,7 @@ const volunteerKey = 'pulse.volunteer.v1';
 const managerTabs: { label: string; icon: IconName }[] = [
   { label: 'Operations', icon: 'grid-outline' },
   { label: 'Team', icon: 'people-outline' },
+  { label: 'Map', icon: 'map-outline' },
   { label: 'Settings', icon: 'settings-outline' },
 ];
 const volunteerTabs: { label: string; icon: IconName }[] = [
@@ -109,7 +111,8 @@ function Workspace() {
     void AsyncStorage.setItem(volunteerKey, JSON.stringify({ base: url, id: volunteer.id, name: volunteer.name })).catch(() => {});
   }} onBack={() => void returnToMenu()} onSettings={() => setConfiguring(true)} />;
   const pages = mode === 'Manager'
-    ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} hiddenResolvedBefore={resolvedClearedAt} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => void returnToMenu()} />]
+    ? [<BoardScreen key={`board-${url}`} onOpen={setIncidentId} hiddenResolvedBefore={resolvedClearedAt} />, <TeamScreen key={`team-${url}`} onOpen={setIncidentId} />,
+      <MapScreen key={`map-${url}`} onOpen={setIncidentId} />, <ConnectionScreen key="connection" managerMode onClearResolvedFromApp={clearResolvedFromApp} onReturnToMenu={() => void returnToMenu()} />]
     : [<ReportScreen key={`report-${url}-${volunteerId}`} active={tab === 0 && !incidentId && !inbox.current} onOpen={setIncidentId} volunteerId={volunteerId!} volunteerName={volunteerName} />,
       <VolunteerAlertsScreen key={`alerts-${url}`} volunteerId={volunteerId!} onOpen={setIncidentId} inbox={inbox} duty={duty} />,
       <ConnectionScreen key="connection" onReturnToMenu={() => void returnToMenu()} />];

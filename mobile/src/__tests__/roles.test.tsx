@@ -66,6 +66,21 @@ async function returnToMenu() {
   await screen.findByRole('button', { name: 'Continue as manager' });
 }
 
+test('only managers have a Map tab and volunteer settings remain accessible', async () => {
+  render(<App />);
+  await signIn();
+  expect(screen.queryByRole('tab', { name: 'Map' })).toBeNull();
+  expect(screen.queryByTestId('festival-map', { includeHiddenElements: true })).toBeNull();
+  expect(screen.getAllByRole('tab')).toHaveLength(3);
+  await returnToMenu();
+  fireEvent.press(screen.getByRole('button', { name: 'Continue as manager' }));
+  fireEvent.press(await screen.findByRole('tab', { name: 'Map' }));
+  await screen.findByText('Festival map.');
+  expect(screen.getByRole('tab', { name: 'Map', selected: true })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Find my position' })).toBeNull();
+  await returnToMenu();
+});
+
 test('volunteer voice report, manager approval and alert work together across mode switches', async () => {
   render(<App />);
   await signIn();

@@ -1,0 +1,138 @@
+{
+  "POLICY": {
+    "title": "Pulse provisional priority policy",
+    "url": null,
+    "note": "Author-defined labels and uncertainty policy; not a validated clinical triage protocol.",
+    "accessed": "2026-10-08"
+  },
+  "WHO": {
+    "title": "WHO Interagency Integrated Triage Tool",
+    "url": "https://www.who.int/tools/triage",
+    "accessed": "2026-10-08"
+  },
+  "SFT": {
+    "title": "OpenAI supervised fine-tuning format",
+    "url": "https://developers.openai.com/api/docs/guides/supervised-fine-tuning",
+    "accessed": "2026-10-08"
+  },
+  "000": {
+    "title": "Healthdirect: calling triple zero",
+    "url": "https://www.healthdirect.gov.au/calling-triple-zero",
+    "accessed": "2026-10-08"
+  },
+  "HEART": {
+    "title": "Healthdirect: heart attack",
+    "url": "https://www.healthdirect.gov.au/heart-attack",
+    "accessed": "2026-10-08"
+  },
+  "STROKE": {
+    "title": "Healthdirect: stroke",
+    "url": "https://www.healthdirect.gov.au/stroke",
+    "accessed": "2026-10-08"
+  },
+  "ALLERGY": {
+    "title": "Healthdirect: anaphylaxis",
+    "url": "https://www.healthdirect.gov.au/anaphylaxis",
+    "accessed": "2026-10-08"
+  },
+  "HEAD": {
+    "title": "Healthdirect: head injuries",
+    "url": "https://www.healthdirect.gov.au/head-injuries",
+    "accessed": "2026-10-08"
+  },
+  "SEIZURE": {
+    "title": "Healthdirect: seizures",
+    "url": "https://www.healthdirect.gov.au/seizures",
+    "accessed": "2026-10-08"
+  },
+  "HEAT": {
+    "title": "Healthdirect: heatstroke",
+    "url": "https://www.healthdirect.gov.au/heatstroke",
+    "accessed": "2026-10-08"
+  },
+  "WOUND": {
+    "title": "Healthdirect: wounds cuts and grazes",
+    "url": "https://www.healthdirect.gov.au/wounds-cuts-and-grazes",
+    "accessed": "2026-10-08"
+  },
+  "BURN": {
+    "title": "Healthdirect: burns and scalds",
+    "url": "https://www.healthdirect.gov.au/burns-and-scalds",
+    "accessed": "2026-10-08"
+  },
+  "SPRAIN": {
+    "title": "Healthdirect: sprains and strains",
+    "url": "https://www.healthdirect.gov.au/sprains-and-strains",
+    "accessed": "2026-10-08"
+  },
+  "FRACTURE": {
+    "title": "Healthdirect: fractures",
+    "url": "https://www.healthdirect.gov.au/fractures",
+    "accessed": "2026-10-08"
+  },
+  "ABDOMEN": {
+    "title": "Healthdirect: abdominal pain",
+    "url": "https://www.healthdirect.gov.au/abdominal-pain",
+    "accessed": "2026-10-08"
+  },
+  "VOMIT": {
+    "title": "Healthdirect: vomiting",
+    "url": "https://www.healthdirect.gov.au/vomiting",
+    "accessed": "2026-10-08"
+  },
+  "SUN": {
+    "title": "Healthdirect: sunburn",
+    "url": "https://www.healthdirect.gov.au/sunburn",
+    "accessed": "2026-10-08"
+  },
+  "NOSE": {
+    "title": "Healthdirect: nosebleed",
+    "url": "https://www.healthdirect.gov.au/nosebleed",
+    "accessed": "2026-10-08"
+  },
+  "BITE": {
+    "title": "Healthdirect: insect bites and stings",
+    "url": "https://www.healthdirect.gov.au/insect-bites-and-stings",
+    "accessed": "2026-10-08"
+  },
+  "FAINT": {
+    "title": "Healthdirect: fainting",
+    "url": "https://www.healthdirect.gov.au/fainting",
+    "accessed": "2026-10-08"
+  },
+  "OVERDOSE": {
+    "title": "Healthdirect: drug overdose",
+    "url": "https://www.healthdirect.gov.au/drug-overdose",
+    "accessed": "2026-10-08"
+  },
+  "HEADACHE": {
+    "title": "Healthdirect: headaches",
+    "url": "https://www.healthdirect.gov.au/headaches",
+    "accessed": "2026-10-08"
+  },
+  "EYE": {
+    "title": "Healthdirect: objects or chemicals in eye",
+    "url": "https://www.healthdirect.gov.au/objects-or-chemicals-in-eye",
+    "accessed": "2026-10-08"
+  },
+  "FEVER": {
+    "title": "Healthdirect: fever",
+    "url": "https://www.healthdirect.gov.au/fever",
+    "accessed": "2026-10-08"
+  },
+  "DIZZY": {
+    "title": "Healthdirect: dizziness",
+    "url": "https://www.healthdirect.gov.au/dizziness",
+    "accessed": "2026-10-08"
+  },
+  "HAYFEVER": {
+    "title": "Healthdirect: hay fever",
+    "url": "https://www.healthdirect.gov.au/hay-fever",
+    "accessed": "2026-10-08"
+  },
+  "BLISTER": {
+    "title": "Healthdirect: blisters",
+    "url": "https://www.healthdirect.gov.au/blisters",
+    "accessed": "2026-10-08"
+  }
+}

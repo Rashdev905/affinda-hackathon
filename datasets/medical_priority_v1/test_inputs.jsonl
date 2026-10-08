@@ -1,0 +1,12 @@
+{"id": "H14-1", "input": {"report": "Cleaning chemical splashed into their eye and they say their vision is blurred.", "context": null}}
+{"id": "H14-2", "input": {"report": "chemical in eye, intense burning and cannot see clearly", "context": null}}
+{"id": "H15-1", "input": {"report": "They are breathing normally now.", "context": {"previous_report": "An adult fell down stairs, hit their head and became unresponsive.", "previous_priority": "high", "clinician_review_completed": false}}}
+{"id": "H15-2", "input": {"report": "awake again and talking, can you mark this low now", "context": {"previous_report": "An adult fell down stairs, hit their head and became unresponsive.", "previous_priority": "high", "clinician_review_completed": false}}}
+{"id": "M14-1", "input": {"report": "Yesterday's insect bite is more swollen and sore locally; no throat swelling, breathing trouble, dizziness, fever or vomiting.", "context": null}}
+{"id": "M14-2", "input": {"report": "bite on the calf getting redder today, otherwise well, no allergy history or symptoms elsewhere", "context": null}}
+{"id": "M15-1", "input": {"report": "Gradual moderate headache keeps interrupting work; no sudden onset, injury, fever, vomiting, weakness or vision change.", "context": null}}
+{"id": "M15-2", "input": {"report": "headache built up slowly and is not settling, adult alert with no other symptoms or high-risk medical history", "context": null}}
+{"id": "L14-1", "input": {"report": "We're dying of laughter at the show; everyone is well and nobody needs medical help.", "context": null}}
+{"id": "L14-2", "input": {"report": "dying of boredom is just an expression, no illness or injury here", "context": null}}
+{"id": "L15-1", "input": {"report": "Can we get spare plasters for the stall's kit? Nobody is injured.", "context": null}}
+{"id": "L15-2", "input": {"report": "just checking where first aid is, no patient and no emergency", "context": null}}
