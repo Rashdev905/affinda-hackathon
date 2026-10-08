@@ -56,7 +56,7 @@ export interface Incident {
   assigned_responders: string[]
   resolution_note: string | null
   draft_report: string | null
-  parser_mode: 'mock' | 'openai'
+  parser_mode: 'mock' | 'gemini' | 'openai'
 }
 
 export interface Decision {

@@ -7,7 +7,7 @@ import type { Incident } from '../types';
 import { VoiceRecorder } from '../VoiceRecorder';
 
 const examples = [
-  { label: 'Medical', text: "Someone collapsed near the Lawn Stage toilets. They're awake but really dizzy and a crowd is forming." },
+  { label: 'Medical', text: "Someone collapsed beside the west entrance to the Lawn Stage toilets. They're awake, breathing normally, very dizzy, and a crowd is forming." },
   { label: 'Lost child', text: 'A lost child is at North Gate, separated from their parent. I am staying with them at the information point.' },
   { label: 'Site hazard', text: 'There is a broken cable cover at Food Village, beside the water station.' },
 ];
@@ -61,8 +61,8 @@ export function ReportScreen({ onOpen, active = true, volunteerId = 'VOL-014', v
           onPress={() => setShowText(true)} />}
         {(showText || !!text) && <>
         <Field label="What’s happening?" multiline value={text} onChangeText={setText} maxLength={5000}
-          placeholder="Someone needs help near the Lawn Stage toilets…" style={[s.input, { minHeight: 180 }]} />
-        <Text style={s.small}>Include the festival zone, a landmark, and what you can see.</Text>
+          placeholder="Someone collapsed beside the west entrance to the Lawn Stage toilets. They are awake and breathing normally…" style={[s.input, { minHeight: 180 }]} />
+        <Text style={s.small}>In this first report, include what happened, the exact festival zone and nearest landmark, who is affected, their condition, and any immediate hazards. Include only what you know.</Text>
         <View style={s.row}>{examples.map(example => <Pressable key={example.label} accessibilityRole="button" disabled={voiceBusy || busy}
           onPress={() => setText(example.text)} style={s.chip}><Text style={s.small}>{example.label} +</Text></Pressable>)}</View>
         </>}
@@ -94,14 +94,16 @@ A coordinated response.</Text><Text style={[s.body, { color: '#cddfc0' }]}>You s
           <View style={s.divider} />
           <VoiceRecorder key={shown.id} base={url} active={active} disabled={busy} onBusyChange={setVoiceBusy}
             onTranscript={transcript => setUpdate(previous => previous ? `${previous}\n${transcript}` : transcript)} />
-          <Field label={shown.follow_up_question ?? 'Anything changed?'} multiline value={update} onChangeText={setUpdate}
-            maxLength={5000} placeholder="Share the latest information…" />
+          <Text style={s.h3}>Anything new or changed since the initial report?</Text>
+          <Text style={s.small}>Use updates for new information or corrections. The initial report should include the incident location and details known at the time.</Text>
+          <Field label="New information or correction" multiline value={update} onChangeText={setUpdate}
+            maxLength={5000} placeholder="Share only what has changed…" />
           <Button title="Send update" icon="arrow-forward" busy={busy} disabled={voiceBusy || !update.trim() || update.length > 5000} onPress={() => void submit(true)} />
         </> : <Notice text="This incident has been resolved by the safety lead." kind="success" />}
         <Button title="View incident" secondary onPress={() => onOpen(shown.id)} />
       </Card>
       <Button title="New report" icon="add" secondary disabled={busy || voiceBusy} onPress={() => { setIncident(null); setError(''); setMessage(''); setUpdate(''); setShowText(false); }} />
     </>}
-    <Text style={s.small}>Analysis: {shown?.parser_mode === 'openai' ? 'OpenAI' : shown?.parser_mode === 'mock' ? 'mock' : 'server-configured'} · Manager approval before assignment</Text>
+    <Text style={s.small}>Analysis: {shown?.parser_mode === 'gemini' ? 'Gemini' : shown?.parser_mode === 'openai' ? 'AI (legacy incident)' : shown?.parser_mode === 'mock' ? 'mock' : 'server-configured'} · Manager approval before assignment</Text>
   </ScrollView>;
 }

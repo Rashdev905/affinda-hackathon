@@ -29,7 +29,7 @@ The build includes ARM64 and ARMv7 libraries and requires **Android 7.0 / API 24
 
 - Choose **Volunteer**, then log in with a four-digit demo ID (`0001` to `0014`; `0002` is Jamie Chen). Reports and updates use that volunteer's identity.
 - In **Report**, tap **Tap to record**, describe what happened and where, then tap **Stop & transcribe**. Allow microphone access the first time. Review or edit the transcript, then **Submit incident**. Recording stops when opening another tab or incident.
-- **Type a report instead** opens the text input and example reports. For the medical demo, select **Medical**, submit, and answer the breathing follow-up. Follow-ups also accept voice recordings.
+- **Type a report instead** opens the text input and example reports. Include the location, landmark, what happened, and the person's condition in the first report. Use updates only for new or corrected information.
 - On another phone, or via **Settings > Return to main menu**, choose **Manager**. In **Operations**, open the report and review the suggested responders, actions, reasoning, and coverage warnings.
 - **Modify response** saves the edited responders and actions back to the incident for review, without assigning anyone. The updated response appears on the incident screen; **Approve response** is a separate step that assigns the simulated responders. **Reject suggestion** records a reason without dispatching.
 - In **Team**, check resource availability and current assignments.
@@ -75,35 +75,21 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-speech.ps1
 
 Model setup requires internet once; subsequent transcription uses only the local model. Python packages remain in `backend/.venv`. Voice messages stop automatically after 1 minute 50 seconds, or when leaving the Report screen or backgrounding the app. The API rejects recordings over two minutes or 10 MB. Silence, unreadable audio, missing models, and a busy recognizer return actionable errors. Failed uploads can be retried from the same screen without recording again; typing remains available. Recordings are temporary, are not stored with incidents, and are deleted from the phone after successful transcription or discard. Restarting the app does not preserve a pending recording.
 
-Install APK version **0.5.2** over the previous app to combine emergency alerts, Manager/Volunteer modes, and voice recording. It retains the SDK-compatible native dependencies from 0.2.1. The existing backend with `--reload` picks up code changes automatically. Speech recognition is local; incident analysis uses the deterministic mock unless OpenAI is configured. Check transcripts, especially place names and speech in noisy surroundings.
+Install APK version **0.5.2** over the previous app to combine emergency alerts, Manager/Volunteer modes, and voice recording. It retains the SDK-compatible native dependencies from 0.2.1. The existing backend with `--reload` picks up code changes automatically. Speech recognition is local; incident analysis uses the deterministic mock unless Gemini is configured. Check transcripts, especially place names and speech in noisy surroundings.
 
 ## LLM incident analysis
 
-Without an OpenAI key, reports use the deterministic mock. To enable OpenAI analysis, set these variables in the PowerShell terminal used to start the backend:
+Both incident classification and responder alert drafts use Google Gemini. Without a Gemini API key, reports use the deterministic mock and alerts use editable templates. Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey), then set these variables in the PowerShell terminal used to start the backend:
 
 ```powershell
-$env:OPENAI_API_KEY = 'your-key'
-$env:PULSE_AI_MODE = 'openai'
-# Optional; defaults to gpt-6-astra.
-$env:PULSE_OPENAI_MODEL = 'gpt-6-astra'
+$env:GEMINI_API_KEY = 'your-key'
+$env:PULSE_AI_MODE = 'gemini'
+# Optional; defaults to gemini-3.8-flash.
+$env:PULSE_GEMINI_MODEL = 'gemini-3.8-flash'
 powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1 -Lan
 ```
 
-The backend asks OpenAI for schema-validated incident details, a 0–100 internal priority score, medical-assistance need, and per-person responder requirements. Only the score’s High/Medium/Low band is shown in the app; the manager board sorts by the numeric score. Report text and incident facts are sent to OpenAI for analysis. Volunteer names and resource IDs are not sent; the backend matches recommended skills against free resources and only updates assignments after manager approval. For approved responses, the configured alert provider drafts a short situation/location/task message per assigned volunteer; the manager can edit each draft and must press **Send reviewed alerts** before anyone is notified. Alert drafting sends incident details and each responder’s role/task, but not names or IDs. OpenAI Structured Outputs constrains analysis and OpenAI alert drafts; Ollama uses its structured JSON output. [OpenAI Structured Outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)
-
-### Use local Ollama for responder alert drafts
-
-Ollama can generate the editable per-responder alert drafts locally, without an OpenAI API key for that alert-drafting step. Install Ollama for Windows, then in a terminal run:
-
-```powershell
-ollama pull qwen3.5:9b
-$env:PULSE_ALERT_PROVIDER = 'ollama'
-$env:PULSE_OLLAMA_MODEL = 'qwen3.5:9b'
-$env:PULSE_OLLAMA_URL = 'http://127.0.0.1:11434'
-powershell -ExecutionPolicy Bypass -File scripts/start-backend.ps1 -Lan
-```
-
-Ollama must be running on the same computer as the backend. The model can be changed with `PULSE_OLLAMA_MODEL`. Alert drafts use Ollama only when `PULSE_ALERT_PROVIDER='ollama'`; incident classification continues to use `PULSE_AI_MODE` exactly as before (`mock` or `openai`). For example, leave `PULSE_AI_MODE='openai'` to keep OpenAI incident classification while using local Ollama for responder messages. The local model uses structured JSON output through Ollama’s chat API. [Ollama structured outputs](https://ollama.com/blog/structured-outputs) · [Qwen3.5 model options](https://ollama.com/library/qwen3.5) · [Ollama for Windows](https://ollama.com/download/windows).
+The backend uses Gemini structured JSON output for the 0–100 incident priority score, medical-assistance need, and per-person responder requirements. Only the High/Medium/Low band is shown in the app; the manager board sorts by the numeric score. Report text and incident facts go to Gemini for analysis. Volunteer names and IDs are not sent; responder matching remains server-side and assignments still require manager approval. After approval, Gemini drafts a short situation/location/task message for each assigned volunteer. The manager can edit each draft and must press **Send reviewed alerts** before anyone is notified. Alert generation sends incident details and each responder’s role/task, but not names or IDs. [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output) · [Gemini models](https://ai.google.dev/gemini-api/docs/models).
 
 ## Local environments
 
@@ -170,7 +156,7 @@ backend/
   app/main.py                  API, health, local APK download
   app/routers/                 reports, incidents, resources, transcription
   app/services/transcription.py bounded audio decoding and local speech model
-  app/services/ai_analysis.py   structured OpenAI incident analysis and mock fallback
+  app/services/ai_analysis.py   structured Gemini incident analysis and mock fallback
   app/services/ai_mock.py       deterministic no-key report parser
   app/services/coordinator.py  responder eligibility and coverage
   app/database.py              transactional SQLite persistence
@@ -185,6 +171,6 @@ The app uses native text fields, buttons, sheets, switches, scrolling, keyboard 
 - A phone's `localhost` refers to the phone. Use the computer's Wi-Fi IP, not `localhost` or `0.0.0.0`.
 - Allow Python on the computer's private-network firewall if prompted. Guest/campus Wi-Fi may isolate devices; a shared phone hotspot is an alternative. The scripts do not modify firewall rules.
 - A compile, signature verification, and native component tests do not replace testing on a real phone. No physical Android device is attached to this workspace.
-- Without OpenAI configuration, incident parsing and responder suggestions use deterministic demo logic. With OpenAI enabled, score and response needs come from the model, while responder matching and assignment validation remain deterministic. Push notifications, offline report queuing, authentication, and duplicate/cluster detection are not included.
+- Without Gemini configuration, incident parsing and responder suggestions use deterministic demo logic. With Gemini enabled, score and response needs come from the model, while responder matching and assignment validation remain deterministic. Push notifications, offline report queuing, authentication, and duplicate/cluster detection are not included.
 - SDK 54 was selected for Expo Go compatibility during development. Its older development toolchain inherits npm advisories. Do not run `npm audit fix --force` to change Expo/React Native versions independently; upgrade the SDK as a unit before production work.
-- OpenAI report analysis lives in `backend/app/services/ai_analysis.py`; `backend/app/services/ai_mock.py` remains the no-key fallback. Preserve schema validation, deterministic responder checks, and manager approval.
+- Gemini report analysis and alert drafting live in `backend/app/services/ai_analysis.py`; `backend/app/services/ai_mock.py` remains the no-key fallback. Preserve schema validation, deterministic responder checks, and manager approval.

@@ -65,7 +65,7 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
   const [message, setMessage] = useState('');
   const [update, setUpdate] = useState('');
   const [alertDrafts, setAlertDrafts] = useState<AlertDraft[]>([]);
-  const [draftMode, setDraftMode] = useState<'openai' | 'mock' | 'ollama' | null>(null);
+  const [draftMode, setDraftMode] = useState<'gemini' | 'mock' | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftError, setDraftError] = useState('');
   const generatedFor = useRef('');
@@ -127,7 +127,7 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
       {!!incident.missing_information.length && <Notice text={`Information to confirm: ${incident.follow_up_question ?? incident.missing_information.join(', ')}`} />}
       <Card>
         <Text accessibilityRole="header" style={s.h2}>{resolved ? 'Recorded response' : canDecide ? 'Suggested response' : 'Approved response'}</Text>
-        <Text style={s.small}>{canDecide ? 'Awaiting manager approval' : 'Reviewed by the manager'} · {incident.parser_mode === 'openai' ? 'AI analysis' : 'Mock analysis'}</Text>
+        <Text style={s.small}>{canDecide ? 'Awaiting manager approval' : 'Reviewed by the manager'} · {incident.parser_mode === 'gemini' || incident.parser_mode === 'openai' ? 'AI analysis' : 'Mock analysis'}</Text>
         {incident.last_decision === 'reject' && <Notice text="The previous suggestion was rejected. Review or modify before approving." />}
         {recommendation.manager_edited && <Notice text="Modified response saved. Review the responder assignments and actions below; approval is still required." />}
         <Text style={s.h3}>Medical assistance: {(recommendation.medical_assistance_needed ?? (incident.type === 'medical')) ? 'Needed' : 'Not indicated'}</Text>
@@ -170,7 +170,7 @@ export function IncidentScreen({ id, onBack, canManage = true, reportedBy = 'Saf
         <Text style={s.h2}>Review volunteer alert messages</Text>
         <Text style={s.small}>This works the same for High, Medium, and Low priority incidents. Review and edit each assigned volunteer’s message before sending; no alert is sent until you press the button below.</Text>
         <Notice text={draftError} kind="error" />
-        <Notice text={draftLoading ? 'Generating individual message suggestions…' : draftMode === 'openai' ? 'Suggested by AI. Edit any message before sending.' : draftMode === 'ollama' ? 'Suggested by local Ollama model. Edit any message before sending.' : draftMode === 'mock' ? 'Template suggestions shown. Configure an AI provider for generated wording.' : undefined} />
+        <Notice text={draftLoading ? 'Generating individual message suggestions…' : draftMode === 'gemini' ? 'Suggested by Gemini. Edit any message before sending.' : draftMode === 'mock' ? 'Template suggestions shown. Configure Gemini for generated wording.' : undefined} />
         {alertDrafts.map((draft, index) => <View key={draft.volunteer_id} style={{ gap: 8 }}>
           <Text style={s.h3}>{draft.volunteer_name} · {draft.role}</Text>
           <Text style={s.small}>Assigned task: {draft.task}</Text>

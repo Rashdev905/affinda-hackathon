@@ -45,7 +45,7 @@ export function client(base: string) {
     modifySuggestion: (id: string, responder_ids: string[], actions: string[], note: string) =>
       request<Incident>(base, `/api/incidents/${id}/suggestion`, { responder_ids, actions, note, modified_by: 'Manager' }),
     resolve: (id: string, note: string) => request<Incident>(base, `/api/incidents/${id}/resolve`, { note }),
-      alertDrafts: (id: string) => request<{ mode: 'openai' | 'mock' | 'ollama'; drafts: AlertDraft[] }>(base, `/api/incidents/${id}/alert-drafts`, {}, { timeoutMs: 100000 }),
+      alertDrafts: (id: string) => request<{ mode: 'gemini' | 'mock'; drafts: AlertDraft[] }>(base, `/api/incidents/${id}/alert-drafts`, {}, { timeoutMs: 55000 }),
     alert: (id: string, messages: { volunteer_id: string; message: string }[]) => request<Incident>(base, `/api/incidents/${id}/alerts`, { messages, alerted_by: 'Manager' }),
     clearAllIncidents: () => request<{ deleted_count: number }>(base, '/api/incidents', undefined, { method: 'DELETE', headers: { 'X-Pulse-Mode': 'Manager' } }),
   };

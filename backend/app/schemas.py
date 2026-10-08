@@ -86,7 +86,7 @@ class AlertDraft(BaseModel):
 
 
 class AlertDrafts(BaseModel):
-    mode: Literal["openai", "mock", "ollama"]
+    mode: Literal["gemini", "mock"]
     drafts: list[AlertDraft]
 
 
@@ -227,4 +227,5 @@ class Incident(ParsedReport):
     assigned_responders: list[str] = Field(default_factory=list)
     resolution_note: str | None = None
     draft_report: str | None = None
-    parser_mode: Literal["mock", "openai"] = "mock"
+    # Keep openai accepted to read incidents created by older versions.
+    parser_mode: Literal["mock", "gemini", "openai"] = "mock"

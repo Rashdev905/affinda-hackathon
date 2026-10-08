@@ -1,4 +1,4 @@
-"""Validated report analysis using OpenAI Structured Outputs, with an explicit mock mode."""
+"""Validated report analysis using Gemini structured output, with an explicit mock mode."""
 
 import json
 import os
@@ -10,8 +10,7 @@ from ..schemas import Incident, LLMAnalysis, ParsedReport, ResponderAssignment, 
 from .ai_mock import parse_report, parse_update
 from .coordinator import default_response_plan
 
-OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-OLLAMA_CHAT_URL = os.getenv("PULSE_OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/") + "/api/chat"
+GEMINI_GENERATE_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 ANALYSIS_SCHEMA = {
     "type": "object",
@@ -93,25 +92,31 @@ def _apply_safety_overrides(parsed: ParsedReport, plan: ResponsePlan, context: s
 
 def provider_mode() -> str:
     mode = os.getenv("PULSE_AI_MODE", "").strip().lower()
+    # Older local setup notes used "openai"; keep that setting usable with Gemini.
+    if mode == "openai":
+        mode = "gemini"
     if not mode:
-        mode = "openai" if os.getenv("OPENAI_API_KEY") else "mock"
-    if mode not in {"mock", "openai"}:
-        raise AnalysisServiceError("PULSE_AI_MODE must be 'mock' or 'openai'.")
-    if mode == "openai" and not os.getenv("OPENAI_API_KEY"):
-        raise AnalysisServiceError("OpenAI analysis is enabled but OPENAI_API_KEY is not set.")
+        mode = "gemini" if os.getenv("GEMINI_API_KEY") else "mock"
+    if mode not in {"mock", "gemini"}:
+        raise AnalysisServiceError("PULSE_AI_MODE must be 'mock' or 'gemini'.")
+    if mode == "gemini" and not os.getenv("GEMINI_API_KEY"):
+        raise AnalysisServiceError("Gemini analysis is enabled but GEMINI_API_KEY is not set.")
     return mode
 
 
 def alert_provider_mode() -> str:
     """Select the alert-drafting provider independently from incident analysis."""
     mode = os.getenv("PULSE_ALERT_PROVIDER", "").strip().lower()
+    # Redirect prior OpenAI/Ollama alert settings to the replacement provider.
+    if mode in {"openai", "ollama"}:
+        mode = "gemini"
     # Preserve the previous behavior when no alert-specific provider is configured.
     if not mode:
         return provider_mode()
-    if mode not in {"mock", "openai", "ollama"}:
-        raise AnalysisServiceError("PULSE_ALERT_PROVIDER must be 'mock', 'openai', or 'ollama'.")
-    if mode == "openai" and not os.getenv("OPENAI_API_KEY"):
-        raise AnalysisServiceError("OpenAI alert drafting is enabled but OPENAI_API_KEY is not set.")
+    if mode not in {"mock", "gemini"}:
+        raise AnalysisServiceError("PULSE_ALERT_PROVIDER must be 'mock' or 'gemini'.")
+    if mode == "gemini" and not os.getenv("GEMINI_API_KEY"):
+        raise AnalysisServiceError("Gemini alert drafting is enabled but GEMINI_API_KEY is not set.")
     return mode
 
 
@@ -123,19 +128,56 @@ def _available_capabilities(resources: list[Resource]) -> list[dict]:
     ]
 
 
-def _extract_output_text(response: dict) -> str:
-    for item in response.get("output", []):
-        if item.get("type") != "message":
-            continue
-        for content in item.get("content", []):
-            if content.get("type") == "refusal":
-                raise AnalysisServiceError("The AI service declined to analyze this report. Please review it manually.")
-            if content.get("type") == "output_text" and isinstance(content.get("text"), str):
-                return content["text"]
-    raise AnalysisServiceError("The AI service returned no structured analysis. Please retry the report.")
+def _call_gemini_json(system: str, user_data: dict, schema: dict, max_output_tokens: int) -> dict:
+    """Call Gemini's GenerateContent API and parse its schema-constrained JSON response."""
+    model = os.getenv("PULSE_GEMINI_MODEL", "gemini-3.8-flash")
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": json.dumps(user_data, ensure_ascii=False)}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseJsonSchema": schema,
+            "temperature": 0,
+            "maxOutputTokens": max_output_tokens,
+        },
+    }
+    try:
+        response = httpx.post(
+            GEMINI_GENERATE_URL.format(model=model),
+            headers={"x-goog-api-key": os.environ["GEMINI_API_KEY"], "Content-Type": "application/json"},
+            json=body,
+            timeout=httpx.Timeout(45.0, connect=8.0),
+        )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            try:
+                api_message = exc.response.json().get("error", {}).get("message", "")
+            except (ValueError, AttributeError):
+                api_message = ""
+            detail = f": {api_message[:400]}" if api_message else ""
+            raise AnalysisServiceError(f"Gemini API returned HTTP {exc.response.status_code}{detail}") from exc
+        parts = response.json()["candidates"][0]["content"]["parts"]
+        output_text = "".join(part.get("text", "") for part in parts if isinstance(part.get("text"), str))
+        if not output_text:
+            raise ValueError("Gemini returned no text content.")
+        output = json.loads(output_text)
+        if not isinstance(output, dict):
+            raise ValueError("Gemini returned a non-object JSON value.")
+        return output
+    except AnalysisServiceError:
+        raise
+    except httpx.TimeoutException as exc:
+        raise AnalysisServiceError("The Gemini API request timed out. Check your internet connection and retry.") from exc
+    except httpx.HTTPError as exc:
+        raise AnalysisServiceError("Could not connect to the Gemini API. Check your internet connection and retry.") from exc
+    except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
+        raise AnalysisServiceError(
+            "Gemini returned an empty or invalid response. Check PULSE_GEMINI_MODEL and retry."
+        ) from exc
 
 
-def _call_openai(report_text: str, resources: list[Resource], existing: Incident | None) -> LLMAnalysis:
+def _call_gemini_analysis(report_text: str, resources: list[Resource], existing: Incident | None) -> LLMAnalysis:
     previous = None
     if existing:
         previous = {
@@ -155,7 +197,11 @@ def _call_openai(report_text: str, resources: list[Resource], existing: Incident
         "You analyze festival incident reports for a human manager. You are not a clinician and must not diagnose, "
         "promise safety, or dispatch anyone. Return a queue-priority score from 0 to 100 based only on stated facts: "
         "immediate danger, possible life threat, people affected, vulnerability, hazards, and uncertainty. Higher scores "
-        "mean review sooner. Do not invent facts. Extract concise observations and ask only for critical missing details. "
+        "mean review sooner. Do not invent facts. Classify each new incident from its initial report text. Extract the location "
+        "directly from that text, preserving the named zone, landmark, and relative position (for example, 'beside the west "
+        "entrance of the Food Village'). Never replace a specific location with only a broad zone, and never guess a location. "
+        "Extract concise observations and ask only for critical missing details. The initial report should provide the available "
+        "incident facts; do not ask the volunteer to repeat or move the location into a later update. "
         "Treat an explicit or suspected broken/fractured bone as a medical incident requiring medical assistance and at least a 70/100 queue score; do not call a possible fracture low priority. Do not infer a fracture from a negative statement such as 'no fracture'. Recommend whether medical assistance is needed, then list one responder need per person with a required skill "
         "that exists in the supplied available capabilities and a concrete responsibility. Use paramedic when that skill "
         "is justified and available. Recommend no more than 10 people. If no capability matches, still describe the need; "
@@ -164,30 +210,13 @@ def _call_openai(report_text: str, resources: list[Resource], existing: Incident
         "string for follow_up_question when none is needed. The manager must "
         "approve any assignment. Output only the requested structured data."
     )
-    body = {
-        "model": os.getenv("PULSE_OPENAI_MODEL", "gpt-6-astra"),
-        "store": False,
-        "max_output_tokens": 1400,
-        "input": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": json.dumps(user_data, ensure_ascii=False)},
-        ],
-        "text": {"format": {"type": "json_schema", "name": "festival_incident_analysis", "strict": True, "schema": ANALYSIS_SCHEMA}},
-    }
     try:
-        response = httpx.post(
-            OPENAI_RESPONSES_URL,
-            headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}", "Content-Type": "application/json"},
-            json=body,
-            timeout=httpx.Timeout(35.0, connect=8.0),
-        )
-        response.raise_for_status()
-        output = _extract_output_text(response.json())
-        analysis = LLMAnalysis.model_validate_json(output)
+        output = _call_gemini_json(system, user_data, ANALYSIS_SCHEMA, 1400)
+        analysis = LLMAnalysis.model_validate(output)
     except AnalysisServiceError:
         raise
-    except (httpx.HTTPError, ValueError, KeyError, AttributeError, TypeError) as exc:
-        raise AnalysisServiceError("AI analysis is unavailable. The report was not saved; retry or use mock mode.") from exc
+    except (ValueError, TypeError) as exc:
+        raise AnalysisServiceError("Gemini analysis returned invalid incident data. The report was not saved; retry or use mock mode.") from exc
 
     if existing:
         # Updates may escalate priority, but they do not silently downgrade an active incident.
@@ -201,8 +230,8 @@ def _call_openai(report_text: str, resources: list[Resource], existing: Incident
 
 def analyze_report(report_text: str, resources: list[Resource], existing: Incident | None = None) -> tuple[ParsedReport, ResponsePlan, str]:
     mode = provider_mode()
-    if mode == "openai":
-        analysis = _call_openai(report_text, resources, existing)
+    if mode == "gemini":
+        analysis = _call_gemini_analysis(report_text, resources, existing)
         parsed, plan = analysis.parsed_report(), analysis.response_plan()
         context = report_text + (" " + existing.summary + " " + " ".join(existing.observations) if existing else "")
         _apply_safety_overrides(parsed, plan, context)
@@ -243,56 +272,19 @@ def generate_alert_messages(incident: Incident, assignments: list[ResponderAssig
         "plain and direct. Do not add safety claims, diagnoses, names, or tasks for other responders. Return exactly one "
         "message for every task index in the requested JSON format."
     )
-    user_payload = json.dumps({
-        "incident": incident.summary, "location": incident.location, "assignments": tasks,
-    }, ensure_ascii=False)
-
-    if mode == "ollama":
-        model = os.getenv("PULSE_OLLAMA_MODEL", "qwen3.5:9b")
-        body = {
-            "model": model,
-            "stream": False,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_payload},
-            ],
-            "format": alert_schema,
-            "options": {"temperature": 0},
-        }
-        try:
-            response = httpx.post(OLLAMA_CHAT_URL, json=body, timeout=httpx.Timeout(90.0, connect=5.0))
-            response.raise_for_status()
-            output = json.loads(response.json()["message"]["content"])
-        except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as exc:
-            raise AnalysisServiceError(
-                f"Could not generate responder alert drafts with Ollama. Ensure Ollama is running and '{model}' is installed."
-            ) from exc
-    else:
-        body = {
-            "model": os.getenv("PULSE_OPENAI_MODEL", "gpt-6-astra"),
-            "store": False,
-            "max_output_tokens": max(300, min(1200, len(assignments) * 100)),
-            "input": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_payload},
-            ],
-            "text": {"format": {"type": "json_schema", "name": "responder_alert_drafts", "strict": True, "schema": alert_schema}},
-        }
-        try:
-            response = httpx.post(
-                OPENAI_RESPONSES_URL,
-                headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}", "Content-Type": "application/json"},
-                json=body, timeout=httpx.Timeout(25.0, connect=8.0),
-            )
-            response.raise_for_status()
-            output = json.loads(_extract_output_text(response.json()))
-        except (AnalysisServiceError, httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as exc:
-            raise AnalysisServiceError("Could not generate responder alert drafts. Retry or use the provided editable templates.") from exc
-
     try:
+        output = _call_gemini_json(system_prompt, {
+            "incident": incident.summary,
+            "location": incident.location,
+            "assignments": tasks,
+        }, alert_schema, max(300, min(1200, len(assignments) * 100)))
         indexed = {item["index"]: item["message"].strip() for item in output["messages"]}
         if set(indexed) != set(range(len(assignments))) or any(not message or len(message) > 500 for message in indexed.values()):
             raise ValueError("The AI did not return one valid message per responder.")
         return [indexed[index] for index in range(len(assignments))], mode
+    except AnalysisServiceError as exc:
+        raise AnalysisServiceError(f"Could not generate responder alert drafts. {exc}") from exc
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
-        raise AnalysisServiceError("Could not generate responder alert drafts. Retry or use the provided editable templates.") from exc
+        raise AnalysisServiceError(
+            "Gemini returned alert drafts that did not match the assigned responders. Retry or use the editable templates."
+        ) from exc
